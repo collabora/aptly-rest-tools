@@ -1,0 +1,168 @@
+Format: 1.8
+Date: Thu, 27 Jan 2022 09:37:53 +0000
+Source: util-linux
+Binary: bsdextrautils bsdextrautils-dbgsym bsdutils bsdutils-dbgsym eject eject-dbgsym eject-udeb fdisk fdisk-dbgsym fdisk-udeb libblkid-dev libblkid1 libblkid1-dbgsym libblkid1-udeb libfdisk-dev libfdisk1 libfdisk1-dbgsym libfdisk1-udeb libmount-dev libmount1 libmount1-dbgsym libmount1-udeb libsmartcols-dev libsmartcols1 libsmartcols1-dbgsym libsmartcols1-udeb libuuid1 libuuid1-dbgsym libuuid1-udeb mount mount-dbgsym rfkill rfkill-dbgsym util-linux util-linux-dbgsym util-linux-locales util-linux-udeb uuid-dev uuid-runtime uuid-runtime-dbgsym
+Architecture: amd64 all
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Distribution: apertis
+Urgency: medium
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Changed-By: OBS Build <obs@buildd>
+Description:
+ bsdextrautils - extra utilities from 4.4BSD-Lite
+ bsdutils   - basic utilities from 4.4BSD-Lite
+ eject      - ejects CDs and operates CD-Changers under Linux
+ eject-udeb - ejects CDs from d-i menu (udeb)
+ fdisk      - collection of partitioning utilities
+ fdisk-udeb - Manually partition a hard drive (fdisk) (udeb)
+ libblkid-dev - block device ID library - headers
+ libblkid1  - block device ID library
+ libblkid1-udeb - stripped down block device ID library, for debian-installer (udeb)
+ libfdisk-dev - fdisk partitioning library - headers
+ libfdisk1  - fdisk partitioning library
+ libfdisk1-udeb - stripped down fdisk partitioning library, for debian-installer (udeb)
+ libmount-dev - device mounting library - headers
+ libmount1  - device mounting library
+ libmount1-udeb - stripped down device mounting library, for debian-installer (udeb)
+ libsmartcols-dev - smart column output alignment library - headers
+ libsmartcols1 - smart column output alignment library
+ libsmartcols1-udeb - stripped down smart column output aligment library, for debian-in (udeb)
+ libuuid1   - Universally Unique ID library
+ libuuid1-udeb - stripped down Universally Unique ID library, for debian-installer (udeb)
+ mount      - tools for mounting and manipulating filesystems
+ rfkill     - tool for enabling and disabling wireless devices
+ util-linux - miscellaneous system utilities
+ util-linux-locales - locales files for util-linux
+ util-linux-udeb - stripped down miscellaneous system utilities, for debian-installe (udeb)
+ uuid-dev   - Universally Unique ID library - headers and static libraries
+ uuid-runtime - runtime components for the Universally Unique ID library
+Changes:
+ util-linux (2.36.1-8+deb11u1+apertis1bv2023dev2b3) apertis; urgency=medium
+ .
+   * OBS build bv2023dev2b3
+Checksums-Sha1:
+ dea3120a61f8ebb7669df39df053059f90ec0095 184344 bsdextrautils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 8643ee3f4d1bae8150e18b3e3fb2df6e9ecc926c 153592 bsdextrautils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 181e2fd0787ab8fa4dde1e928c99536ada99afe3 226660 bsdutils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 215cfbfda5ce891c671d54381fae8cb837dd3cb4 156780 bsdutils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e4545577a08d6ad096dc7a710fb9108245b3449d 83924 eject-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 243dd3e5138e448af7ddba90522bff1a61ab15fb 29940 eject-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 42c024a5beeff139961d2d1a2140ae5de9b3170f 110552 eject_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6f3d95267c5e2cf4bd64f3b05213b390928da333 379544 fdisk-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e5d1c36c3261fc5fe107a39c7032e94949336e3f 676180 fdisk-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ d99008c58001d5e630d3f01e5f6f251b8b53b9d7 200612 fdisk_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e3282d571a51a693dc1c13910331e5393d20f03a 232660 libblkid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 27a73a193a3e8cce7d7b5b5c0841593955515914 412828 libblkid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 48719acf44e2fcf768e0f8cfb899c43f51ed924e 124244 libblkid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 43a055b4aed6102dc4bc805d0a20be7d07a71f84 202128 libblkid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 80b459d1b4dc500d6fecc9173b791cd55c9802e1 85284 libfdisk-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 5cdf73b15c84a5b31c124467c9b5cb3cc41be1fc 492264 libfdisk1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ d6b9f707a82874712cc4ddfffdacfa868874dfe2 166168 libfdisk1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 83b4c7555b6d36bf7984cb4461ed5dd39c93d711 245808 libfdisk1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 46a94f55a937f06b7784a1e0024a0674ea561816 85976 libmount-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 16250ba7824d74110de10fdb2465f6964b9b20c2 410620 libmount1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6281082954cd3bb06ca7d6be286ab6dc8d4509b4 140504 libmount1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 002dd18cefeb4472d7968ed7a43fe9dee5939a61 219936 libmount1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6100a9e271ed77e3ae04778ace1e5f803b0ac74a 81812 libsmartcols-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ d54260b17760f07cfe1f703d7bf2503542ceaca7 273408 libsmartcols1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 8b932c72b6ac3069098f4d306fff5b2703f224d1 86372 libsmartcols1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ fecb0f3326d5c63feb52a5ca46173cbfc99be5f7 165920 libsmartcols1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 309a1feb3364840f0cbec00bfc11c68ab4e929d4 28240 libuuid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ aec7de91d90f611058c2718b278a0f13a45460aa 13240 libuuid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 3914d7049d471791b5d5fb55fa43e8029e7e9311 92020 libuuid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e0c4c972b41d660749d618b095004f9068d3f4b4 233776 mount-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 003d664b2334a41679a8bcc0784cfc5114079271 194032 mount_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ d3e92a3f33e03d2ce58d448feb45f89bb789a7c7 42080 rfkill-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 210c9d243e19b360267cd0c0c1d54f70d28b3937 96640 rfkill_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 4957d23827b0a105b416243094e8570e48c2a399 3023400 util-linux-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ a043a42006f10add9792818ef74e26db53e02b3e 1202980 util-linux-locales_2.36.1-8+deb11u1+apertis1bv2023dev2b3_all.deb
+ 534a029ded85bc05ef3639d0fdbaa8dea07054dd 396124 util-linux-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 2afda533dfc283fc88362970ee14710160cf03d2 24379 util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.buildinfo
+ 7d64ef488b1486e7f149cdac834e36701ed29a49 1139056 util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ c57da58ca2c883124f49a83e747c523dd534bc4f 107304 uuid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ dcf1cce2b83f61131f25354df0c82a3102170dd1 74848 uuid-runtime-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ c6948c8181024327ef4f35fc6bfc5e3e8da3d899 109396 uuid-runtime_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+Checksums-Sha256:
+ f47f9a42a4099241274e4716b5da939a1fb4d8c9c6d77d5bf40825c9c103c6ca 184344 bsdextrautils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 8f9cc76d38d46ddf3645c4cb5580fca658a7e41437613cbdd3af4e0c13d6659a 153592 bsdextrautils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 7feb99fc617092d12230a125237dfb8864a405ffa4464b00ecf694a9a461b2e8 226660 bsdutils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e23cf25d29cb91c92017067483c25aea02322a27f6a77c20e75302c428eb1b27 156780 bsdutils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ db4abccd4e11f864a4904612d41c26a2d6fb3c870c62c2161a6d48dce462f5ed 83924 eject-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 21f6dc84a6374f9fb9da1f532cbac45f77e8430dfd5296c729e6da7ed08730eb 29940 eject-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ e860aabf841949740ab72617efefe03923786db2731a27775ed2c9471a6fb549 110552 eject_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 808fa341f94b6ea8107fe9a3789257e3ce03a651d684b6702eeb22077bece3a0 379544 fdisk-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 94398c125ed20be54f54defb581bf9963e3c3d59b678b08ae90aed9edc1513ee 676180 fdisk-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 6461c2d4784f0bb242ce12229505dd69fa78df07ac2a8c15b3fd737faff21371 200612 fdisk_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ f296e50bb0bb86811cb59d52987d309a712e27ef1fb9b1ad9cba8ec438101bb3 232660 libblkid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 07ad1137ae62bddf97dbcb149ea688973d003826b0a3c05277f19558cc773531 412828 libblkid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 16adb1b5473df92a38e8058955d6b7ca736817573bae973420a9888f9610bf16 124244 libblkid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 2032297130fac6f0284aab4fd190603aac0e44020f48fcde8863a4795b480c77 202128 libblkid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 8f1b63b70e7396f8c3f53d5931afa3047d0393aa8d9c3286815889ef6ab8c097 85284 libfdisk-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ cdfd534c8ccd9a940ccde58a4175d5c6267b22e30dce30e0194ef0a99cce9703 492264 libfdisk1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 1706aba6002706278c9b51479be8ca99435c38b908630aaa60db83dd22d56a78 166168 libfdisk1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ a14108347b470764d609f45d9f19f70d7f9e81228f3fe79f9b7b66eeb04c7fa4 245808 libfdisk1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ c7ce3f0c77c844739e6b701495f112de9a7d02420009d8976033efd3d7a23b3b 85976 libmount-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 10660cdcb0599055dbc5a5ff402f65f3867a51070afae81a2b5f34a142e9c71f 410620 libmount1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ c3edd0a661b72ad8f0bdf1613caeb4c292aa8761b18f0a6d6539673a528a8bdd 140504 libmount1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 1c6ec28c1214c1aac2264f39ba112821283dfb7a20f5ad8beae54b444d8fab15 219936 libmount1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ d1c9572b31c05bcae98cbda084a20d875a13853dcf6b78a0c794565f109e66ef 81812 libsmartcols-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 01304d19a37f9866ab655c6018f50280b20b0a4417621e7405acedfbd005a8f2 273408 libsmartcols1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 67e43f0bb2d69f17ddc7370008994184b6996dd968c3c3ac53315e8e066c27ad 86372 libsmartcols1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ b8d05345800b2ff85628c37a8cced8c4c30ee264e8f61f454c4faf6aff9b18e7 165920 libsmartcols1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 084fbe0accf8fb1aaadce2f44193ae46375a5fe6d40a5707836b284dc7962d18 28240 libuuid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ e7b87ce2eb92f7f279580eea03de486790f41888c3b06d89aa628a0e1bd09857 13240 libuuid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ e5d353f63485f1083f2f5a37b356df7387a9ce09376af807a6437946f5000144 92020 libuuid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 01e44d86a421c5898dd41d98546a970ac8f7c8b5a89c52afbbea88b65456a17d 233776 mount-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ a4e8a5343024f7dc0675d5939b3752186287493259c8c59ef4836ba23f02fadb 194032 mount_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 8697a093c224d115baf22677943787a8897404e8d2c8b0a4489a433bd13bbf78 42080 rfkill-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 836f446e4310b0527cb75b6d7990bcf1fbddc67548247473489b99162446217a 96640 rfkill_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ b8e48ab89a864744dc5e91eb5e1928802f005f18ebb438ffbc825a0fe6fe88e6 3023400 util-linux-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 5ad12fb54f2757f1d4cabb38218007bc94935ef41595ddb203fc35f0b2be5224 1202980 util-linux-locales_2.36.1-8+deb11u1+apertis1bv2023dev2b3_all.deb
+ a28fc8cb4f9f8c348fa831312fa8fcd1a6d9a5d717b7cd5dbd6608589e6e9cf5 396124 util-linux-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 2f7f51c738bad69093eb7c4f42318db7d3f7bdeeaf2c6922a82495e49a15866e 24379 util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.buildinfo
+ 44d49b8acac566bd76e1b91d36bec77a0916702ba65bafe2b63a869a757e79a1 1139056 util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ a48d131cbfe9c9f8193015367d833b8c1c57a92690ac6d40c2e7e1f6b6d843ec 107304 uuid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 3eb22da7c9908598b349f254f96fc465977312a91935b122eb8e04143b47f38f 74848 uuid-runtime-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ f9c4b0b9127dda5474973451c4d134c2c54b5c4f8b773a85dd26d60382ead4f0 109396 uuid-runtime_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+Files:
+ 6898e366927ae05a429f2c8302298b65 184344 debug optional bsdextrautils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 234be1a3f66b227be20a149051233c69 153592 utils optional bsdextrautils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 73d92c7dba47618fb5940c1635fe8fd0 226660 debug optional bsdutils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 26a5e06afc1e23fc3733e8146701cdef 156780 utils required bsdutils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ c971f96b04788798e09e6d167abb7988 83924 debug optional eject-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 13776be2956c0cb5ac4e2a04fb1ab5e2 29940 debian-installer optional eject-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ d8a5223c439a7473c90556c031fed12a 110552 utils optional eject_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 2b9d047ad63aea7f494fc364488cccb3 379544 debug optional fdisk-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ dcbd6f70e0ab3e810adc6641e3937aee 676180 debian-installer optional fdisk-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ f58c9e5a64638449043aeb87b702be04 200612 utils important fdisk_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 77ae80c7f6dad97e9f9c69815c2360ac 232660 libdevel optional libblkid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 0be0fbd7a412a91ecc4194c47f706b50 412828 debug optional libblkid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 63e04d76791c0aef43c28485266a7aaa 124244 debian-installer optional libblkid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 80726c1702b8292320ead0b58375f7f5 202128 libs optional libblkid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ a87a25b28406a5c98eba0684ed807cb6 85284 libdevel optional libfdisk-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 480100e0d43b9e0d1bb776f38359a2c6 492264 debug optional libfdisk1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 82118e6eac9f607834d4063627bb44ae 166168 debian-installer optional libfdisk1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 0f4c668066a1849e95b0f5f8592c2b13 245808 libs optional libfdisk1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ edd51d69608d67fb21b19ab89760b482 85976 libdevel optional libmount-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 084829e976256827ab36c79c00421e91 410620 debug optional libmount1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ ef3afd32ae08e7ccfb637b9ccc2bfee6 140504 debian-installer optional libmount1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ 98e2c505de40542fd8c96415c94b8966 219936 libs optional libmount1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6d7531a3d1f37669abfc9821fec6978c 81812 libdevel optional libsmartcols-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ edac11f19efaf7c59888912086d473e3 273408 debug optional libsmartcols1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 1feb84dbda012f1394b3b325b0bb13d8 86372 debian-installer optional libsmartcols1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ ef8ebc077dd4c84ae73f2f0dac629304 165920 libs optional libsmartcols1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6cfaa84a5c6e45b819d581cc7413b3cd 28240 debug optional libuuid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 26534400ed76549b3e4bf814f79d2c4a 13240 debian-installer optional libuuid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ ead5796168aad0e8f29780d3920c9f8d 92020 libs optional libuuid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ fb6275a317c2f1d8afb407bf0e7f165f 233776 debug optional mount-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ debc61e026a3ecff8341dbcc450acbb9 194032 admin required mount_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 1dae9920c6eee3212711784ed3bc482d 42080 debug optional rfkill-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ b1e122d471f8d8ee221b7c9f1dc9c498 96640 utils optional rfkill_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 6d54066ff83f49635f5a1ad2cabea426 3023400 debug optional util-linux-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 04f51ec0ff96fb000ab6a9584f93bde3 1202980 localization optional util-linux-locales_2.36.1-8+deb11u1+apertis1bv2023dev2b3_all.deb
+ db3a530386078e1654c7db41016ce593 396124 debian-installer optional util-linux-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb
+ dd83b5265c90ad2fa3a6c1756b219a03 24379 base required util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.buildinfo
+ 228081bfaebba775bc7ac924e55f06f1 1139056 utils required util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ d6bd346009c24674b743e13793bc9fd4 107304 libdevel optional uuid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 3b22edd8df2fa321aa1d49bb464b490b 74848 debug optional uuid-runtime-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb
+ 76a27c129121b0eef42626e82fbe2aaf 109396 utils optional uuid-runtime_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb

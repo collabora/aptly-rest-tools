@@ -1,0 +1,72 @@
+[
+  {
+    "Must": {
+      "RemoveAptly": "Pall libstd-rust-dev-wasm32 1.48.0+dfsg1-2 467ca0824312dc4"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pall rust-doc 1.48.0+dfsg1-2 21341ad8ea22dc04"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pall rust-gdb 1.48.0+dfsg1-2 8dddcae8b989b1bc"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pall rust-lldb 1.48.0+dfsg1-2 404abacfbe5249af"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pall rust-src 1.48.0+dfsg1-2 247e0d32aff6ddc9"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pamd64 libstd-rust-1.48 1.48.0+dfsg1-2 4209efe7547be98f"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pamd64 libstd-rust-dev 1.48.0+dfsg1-2 bc4cbe4609a95406"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pamd64 libstd-rust-dev-windows 1.48.0+dfsg1-2 1080e40c3fdd511"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Pamd64 rustc 1.48.0+dfsg1-2 87415bdc9ef60793"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Parm64 libstd-rust-1.48 1.48.0+dfsg1-2 7400092db566a981"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Parm64 libstd-rust-dev 1.48.0+dfsg1-2 7764f50e29fd85c5"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Parm64 rustc 1.48.0+dfsg1-2 8e2029a47cdca5d1"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Parmhf rustc 1.48.0+dfsg1-2 e1326ac306ca4ee6"
+    }
+  },
+  {
+    "Must": {
+      "RemoveAptly": "Psource rustc 1.48.0+dfsg1-2 1874ac1ecae98276"
+    }
+  }
+]

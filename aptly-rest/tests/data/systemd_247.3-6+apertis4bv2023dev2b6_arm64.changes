@@ -1,0 +1,139 @@
+Format: 1.8
+Date: Fri, 25 Mar 2022 16:14:40 +0530
+Source: systemd
+Binary: libnss-myhostname libnss-myhostname-dbgsym libnss-mymachines libnss-mymachines-dbgsym libnss-resolve libnss-resolve-dbgsym libnss-systemd libnss-systemd-dbgsym libpam-systemd libpam-systemd-dbgsym libsystemd-dev libsystemd0 libsystemd0-dbgsym libudev-dev libudev1 libudev1-dbgsym libudev1-udeb systemd systemd-boot systemd-boot-dbgsym systemd-container systemd-container-dbgsym systemd-coredump systemd-coredump-dbgsym systemd-dbgsym systemd-sysv systemd-tests systemd-tests-dbgsym systemd-timesyncd systemd-timesyncd-dbgsym udev udev-dbgsym udev-udeb
+Architecture: arm64
+Version: 247.3-6+apertis4bv2023dev2b6
+Distribution: apertis
+Urgency: medium
+Maintainer: Debian systemd Maintainers <pkg-systemd-maintainers@lists.alioth.debian.org>
+Changed-By: OBS Build <obs@buildd>
+Description:
+ libnss-myhostname - nss module providing fallback resolution for the current hostname
+ libnss-mymachines - nss module to resolve hostnames for local container instances
+ libnss-resolve - nss module to resolve names via systemd-resolved
+ libnss-systemd - nss module providing dynamic user and group name resolution
+ libpam-systemd - system and service manager - PAM module
+ libsystemd-dev - systemd utility library - development files
+ libsystemd0 - systemd utility library
+ libudev-dev - libudev development files
+ libudev1   - libudev shared library
+ libudev1-udeb - libudev shared library (udeb)
+ systemd    - system and service manager
+ systemd-boot - systemd EFI boot management
+ systemd-container - systemd container/nspawn tools
+ systemd-coredump - tools for storing and retrieving coredumps
+ systemd-sysv - system and service manager - SysV links
+ systemd-tests - tests for systemd
+ systemd-timesyncd - minimalistic service to synchronize local time with NTP servers
+ udev       - /dev/ and hotplug management daemon
+ udev-udeb  - /dev/ and hotplug management daemon (udeb)
+Changes:
+ systemd (247.3-6+apertis4bv2023dev2b6) apertis; urgency=medium
+ .
+   * OBS build bv2023dev2b6
+Checksums-Sha1:
+ 7c76abb01d83b83fcfb37029028104a6a44f9aa8 183096 libnss-myhostname-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 8c14b0ec52e9e3a31c01e152912742223a931593 144812 libnss-myhostname_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 98e5756f768ddfa0ac51aeba127dd21ee5f91157 494816 libnss-mymachines-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6cc9f11cc3c05d839dd3afc440a0d459868d04c4 221820 libnss-mymachines_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 450d2cdc7b7ce37c0706dce96727b1341e4a6c68 216460 libnss-resolve-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ f279c9b655ad54eeec9228273b6e8d79d1526ac9 162084 libnss-resolve_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 18a11d87f86fdfa7ea6ba10029bb7820df085617 399900 libnss-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 896448e06d501a8724c85a36250bec0d3633d159 202276 libnss-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ b82676498496be03f0786968d05437a47afc4035 722536 libpam-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ea4129deb625e426d37462b7a864f491c76f36f4 280552 libpam-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 18e1d8b859889e939adaf569d938ac127805be7c 407584 libsystemd-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 4e78fef83e80c6aba1c754bba75feeffbace0f06 1042332 libsystemd0-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6917314a7db64e983c00dfa3a6627784933282de 361232 libsystemd0_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 7dfb2df6a1a179831892db2210dd2e0cf476c00d 129748 libudev-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ffec220179d6ce2df95090f9f13e55f57305e567 294856 libudev1-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 3aab17c587f25d038edeb04625f21be45b6d9e72 57040 libudev1-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ b83fc16cbb7312d3bdfead1b88ee6d56c6d72f36 169992 libudev1_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ e27cea34587a47ad87e0e193550f93d83b716b61 65548 systemd-boot-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 06fa8f4a5eac83fa4a059da72a80f607a955247a 179364 systemd-boot_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 99f8d9c696111e7aa29a093fc692fb076339e44c 880808 systemd-container-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ae7a1b1d24ee62937e211c91da21972072fee8de 417804 systemd-container_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ fa88d13692fde634bc3a905b9806326d53dd8fe9 89484 systemd-coredump-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 8ac653f8a17b1905bb86cc6d569d7d226539bd36 148500 systemd-coredump_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 09e11b7458d968ce7de98da9dd65bbc3f5f23013 12759144 systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a57da4c0d97f9d473a86c22db256c20bc03fc976 119692 systemd-sysv_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 368819d8fce8f152794d56c3a8c18c1f257008ba 24821260 systemd-tests-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a06b6994914fc5dc4c1ec7939a1c7a0c0183f50c 5157876 systemd-tests_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 30290b37883ec67a54fcad9fd6ca28189948d9e8 57672 systemd-timesyncd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 68ff04c33c0aa4ab98c6decaa3eafd5cd2ed2e1e 135352 systemd-timesyncd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 7d9135c6f0e54c9b2035e24e09f76ccd71e17c72 24541 systemd_247.3-6+apertis4bv2023dev2b6_arm64.buildinfo
+ 1cdcf57348036ae100dd2476f298fd725dc6d081 4115916 systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 051445c0057a12744b0f93f3b475ac3aa9a89ae9 1948052 udev-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 9313fe2d665d1768940d8ce1c923a82e1bf12d00 355544 udev-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ aa533debc4d0adad719563d6e3abf2c2ea2f56c5 1431356 udev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+Checksums-Sha256:
+ d2c958d56d384b403b481aba7aace792f2a08ecbca30277a7d6f2b1a36d6338e 183096 libnss-myhostname-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6de4ebd499e688828dc4b2bcb8cbc7670e411d2ba70e9572ae51a2c853dcc9b4 144812 libnss-myhostname_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6d49839ea7d66ce879ac86af774c33edf14f1e2f496237a5496f10e5324b588c 494816 libnss-mymachines-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 861cb5315a879e49751dcd88c96d2f020457517ea2f9c51bfe27cff17f70cbb4 221820 libnss-mymachines_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ d71cfb1d9c6d875fdfd68b71265dff9e79eb42384bccd3b8ed03ed6f247ff115 216460 libnss-resolve-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 813d506a56d3a68d4c6bf325fc7e199c71c006cde30f74f2debb85627b0bf337 162084 libnss-resolve_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ dee0e057e483c15fa77d524970318b4c5da1563a8e28c16fb80f77e659fa8a6c 399900 libnss-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ be2407951949e4752aab0b729f3889953cea9883a8636906b198f0035093b7cd 202276 libnss-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 55960fa954496829517296f93978c3d29f6b0275f8360774301805baac1ae310 722536 libpam-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 059e11ca30ee911f308bc0dd4e67ab670e49cd562a873edb12e99bfb2cd1f8a5 280552 libpam-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ f28e6f3c5395e0eb72d7680c12c17f7d5fdeac88b2b6fd7ca50c54d5e9e06e81 407584 libsystemd-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ e2b8c6925c150d2047dd9749fca27c51fd3420a008d46b86a549bc62376a7d6b 1042332 libsystemd0-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 12db9e7fb1e8c6471b43256605fb1caf14bf8359a8190730ddcb82b2a5bc4e98 361232 libsystemd0_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 132ad9a2ef71478af8152e5bede3a36002d85b0f2cd260c96f10a8b368bcea0a 129748 libudev-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 901073e550e73d95bac6e331269bbf54ccb005aae757a45583b5140c16593585 294856 libudev1-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ce4cdf1d5c72ebed13d74196f0a23a3b96bfeafaf4e55f1528811170b13c5f28 57040 libudev1-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ 2aee3d919ad692d858bcf58e5609a003bd3db6ea4aebbda274c047e584b7f1b8 169992 libudev1_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 078865a0b33d08e4d7572ef3f56c6a80c43b69ed0e85f6fbdd6b72cebe8295a4 65548 systemd-boot-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ c31fd48e3440c3274ccbff7af1a60b28fd4b4f698f935d14f301d31663bb5ef3 179364 systemd-boot_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 2ee7c86828c1943fd9229a4cf683a50e264e3d195264842817021748bcc8df06 880808 systemd-container-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 78589f366f46fe0f3e388fdedb87605f087a040e8f1282a24b92bdfd9696b158 417804 systemd-container_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 4ac0f74cbc2358e0a495080f292b6be777889ba2cd97a5c330377ada9f675fe6 89484 systemd-coredump-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 28ca36338ee92786a39b3f3b429d1192d72a7598b52368fdc0af945c2f9db5c3 148500 systemd-coredump_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ c0e633de07b4990064cac59a59cebb4dfc8f5fbacaa0bb5119fb07a21fa19cd2 12759144 systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ebb3a318dc636180613dee9c5111d3c59dd04356bacf8ca10dc17feecd45b02b 119692 systemd-sysv_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ f9462b3f3975a1c1121370563a03e679bdc6a840ac22e42ea0e6f6f1f7cb62d8 24821260 systemd-tests-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ cb9ea2754ab50ab8b44e230ef0231ee19ea16a594112cbce5e16484a106624a4 5157876 systemd-tests_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 760181190f5bd9cfd9853a73d310e4c6bb31871e53a55dfcafab1d36fe19fd4c 57672 systemd-timesyncd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 77ae406d0701b7913143369cfb7cc8911f2453673adcd4f50a86baa9d9b9d010 135352 systemd-timesyncd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 141d9dc2e809c491f5b2474d0a9f7265078c51f8af77936f5b97658354b72d2b 24541 systemd_247.3-6+apertis4bv2023dev2b6_arm64.buildinfo
+ 1dcdb2b23d0f8b8fa30583949be4b4709cd8722df699569f1bab92908fefc159 4115916 systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 0135c280df65fe783817d712207a6bfcd57ae3ce6547ba8ed437c5421f32a6c7 1948052 udev-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a146790a707a6fd3b52fc56e6f966ed4a46b690a1c017dd0377bca51c7a88324 355544 udev-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ b692be5743daefc13368a4d3e8a2fa3ccac7144d4f791806acba2666d6c192d0 1431356 udev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+Files:
+ 72860ae353ba10f5c9db7a6333a04f30 183096 debug optional libnss-myhostname-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 5627c468e659fc8207010584a67217de 144812 admin optional libnss-myhostname_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6730498ccc096c1e007d5a162f2f0d05 494816 debug optional libnss-mymachines-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ c513446d2a809548363d24ccc60042f7 221820 admin optional libnss-mymachines_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a67e4f7ba23cd4d9c1a9cc4fffe2495b 216460 debug optional libnss-resolve-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a22c9bfbe2f94ccaa51eaca5bde4b16d 162084 admin optional libnss-resolve_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 90c951ecd21d19e59f0e84976d5ec616 399900 debug optional libnss-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ea26b76308b1c97f8b2342c3df90cafc 202276 admin standard libnss-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ae522d96a1b615def552c1733842b5e9 722536 debug optional libpam-systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 902025486188a8c012efabbdf276b2c8 280552 admin standard libpam-systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 41c961ee80ebc1a65911a8e00318d669 407584 libdevel optional libsystemd-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 167e94d01a1999c05ced7ddb95938520 1042332 debug optional libsystemd0-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 415d77a9f7f5c2fa3bb4f0c6c0134209 361232 libs optional libsystemd0_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 7ca178c768a5a565b39b2c5b19cca9de 129748 libdevel optional libudev-dev_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ c4ca1df9fe110ed2cebb48a12f76f349 294856 debug optional libudev1-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 6ce8fc8a0de21db686e4657fc9885f77 57040 debian-installer optional libudev1-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ 9e46984ea92bd819702e5281bb7ea7af 169992 libs optional libudev1_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 217ac57dfabd0f97746c4f65a52bcd71 65548 debug optional systemd-boot-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ff840a110b30490a043a9d6af272dd90 179364 admin optional systemd-boot_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 314223db9414ad5c052b1aa7d691e661 880808 debug optional systemd-container-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ f279649bf748635cac84f6b11337e8c5 417804 admin optional systemd-container_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ b374e955087f3d5a9335e88118209506 89484 debug optional systemd-coredump-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 05acae233b1c496a70a4fea86e46dc16 148500 admin optional systemd-coredump_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 390a99c9c2f8356478f64afebd20f7c8 12759144 debug optional systemd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ 8035887053c1e610c594d38a162aa92d 119692 admin important systemd-sysv_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ a85a395e6e7ebdc4a34d2f5fb02e5c29 24821260 debug optional systemd-tests-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ bf82a90056ef90fe8e3192d3501db53a 5157876 admin optional systemd-tests_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ be4fc9b28f437309e68d8c0867376a3c 57672 debug optional systemd-timesyncd-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ f04795c2cedf80b265a0f7ea13760156 135352 admin optional systemd-timesyncd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ fa88707fd8491af329f53e2aeff00184 24541 admin optional systemd_247.3-6+apertis4bv2023dev2b6_arm64.buildinfo
+ 1bbf27a6c7c7d95a367a186cea945e5c 4115916 admin important systemd_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ d64b81b4268435c2d4291a076760a983 1948052 debug optional udev-dbgsym_247.3-6+apertis4bv2023dev2b6_arm64.deb
+ ee46e342fd5ceb2d0b73c8b3615952ad 355544 debian-installer optional udev-udeb_247.3-6+apertis4bv2023dev2b6_arm64.udeb
+ 746b7eb51daa7a403f6ea4e867d4fee5 1431356 admin important udev_247.3-6+apertis4bv2023dev2b6_arm64.deb

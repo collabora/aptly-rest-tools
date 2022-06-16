@@ -1,0 +1,14 @@
+{
+  "repositories": [
+    {
+      "Name": "empty",
+      "Comment": "Empty repository",
+      "DefaultDistribution": "bullseye",
+      "DefaultComponent": "main"
+    }
+  ],
+  "contents": [
+  ],
+  "packages": [
+  ]
+}

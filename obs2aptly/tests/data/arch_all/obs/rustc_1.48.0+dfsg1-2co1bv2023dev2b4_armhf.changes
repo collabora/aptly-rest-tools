@@ -1,0 +1,59 @@
+Format: 1.8
+Date: Sun, 10 Jan 2021 15:43:20 +0000
+Source: rustc
+Binary: libstd-rust-1.48 libstd-rust-1.48-dbgsym libstd-rust-dev libstd-rust-dev-wasm32 rust-doc rust-gdb rust-lldb rust-src rustc rustc-dbgsym
+Architecture: armhf all
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Distribution: apertis
+Urgency: medium
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Changed-By: OBS Build <obs@buildd>
+Description:
+ libstd-rust-1.48 - Rust standard libraries
+ libstd-rust-dev - Rust standard libraries - development files
+ libstd-rust-dev-wasm32 - Rust standard libraries - development files
+ rust-doc   - Rust systems programming language - Documentation
+ rust-gdb   - Rust debugger (gdb)
+ rust-lldb  - Rust debugger (lldb)
+ rust-src   - Rust systems programming language - source code
+ rustc      - Rust systems programming language
+Changes:
+ rustc (1.48.0+dfsg1-2co1bv2023dev2b4) apertis; urgency=medium
+ .
+   * OBS build bv2023dev2b4
+Checksums-Sha1:
+ 7b35aebe334f91acf7164341d51258a24450fced 23213572 libstd-rust-1.48-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 659e17c6da787aabe924f72a75c7cbcb8d43c8eb 17464652 libstd-rust-1.48_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 3250d629f91063ab91bcaf493fed939171d3ce56 46243672 libstd-rust-dev-wasm32_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 7cd2e4350d070850921bbd397b2c6aa58794b329 26786624 libstd-rust-dev_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ a4714d33d83dce02f520eac696daea31834d4597 12386588 rust-doc_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 837446e197d4aa10c29b609153657b778bc3a8c6 173512 rust-gdb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 2935815d8290e2eb2e5110401d3b2355f906aeb8 177496 rust-lldb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 520c86a75fdcdd231d804d70cbb7fb93b947ec93 12257352 rust-src_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 6660059559637dd9fd36ce846c488fca59e8d255 254820 rustc-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ d15ea3ee9a59a2fb19e0fe70e0dc29cf1af1572d 14961 rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.buildinfo
+ bc4c0702f98e5ff82c2605658b04b0e8aa3c40d8 1864892 rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+Checksums-Sha256:
+ 9be966183e27668de12e566ddb9a46167f0c7f42ed22062755058edfdc5aceab 23213572 libstd-rust-1.48-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ c4e10014f1d275d16270477685e374c85bc250decde871fb4bb6c72270de2469 17464652 libstd-rust-1.48_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 7a52a562e9f177cd6281b4a456efa660c40981f913fb391f3479bd92cbd381ec 46243672 libstd-rust-dev-wasm32_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 6066970d4e21db471608c4a3d89425d66ffea8e3252057da5f5375acc78475e9 26786624 libstd-rust-dev_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ b71bb251173bd3d9174c952588241bfaa0045cda399e16f0cfff7b5b56a32358 12386588 rust-doc_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 52acb00a0be8ab981cb2f06bdbd908f335dc650e9c21c97a87bd45e9f009e3cd 173512 rust-gdb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 1b9cb531d394a087ea4c11aaad19de405e0de18274fd151a0e29fefa80d1a872 177496 rust-lldb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ e4c3b970a614a3a8ddd4145a396c7d45560fa5d95dd32444a659900a4b629937 12257352 rust-src_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ db79b5d05f0d1a5df249b1af89bf5f3d8a30aea2fdeb2fe7e67a86fde1696944 254820 rustc-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 69d92d770236c22a361049fba7fdf7b4fcb27f7c949837482d6868ee493d5496 14961 rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.buildinfo
+ b568cfc57943414f040ba7614aa84b85c431a2d5ffe01d1d5871362bc4b91000 1864892 rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+Files:
+ 405cbd76c311489fd0fe0a45bc28ec7e 23213572 debug optional libstd-rust-1.48-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 91f621c3b0288491686744f6fada0c14 17464652 libs optional libstd-rust-1.48_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 1ec0bd1250157abca1535c8df404174b 46243672 libdevel optional libstd-rust-dev-wasm32_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 580f98a5a6224e7d68964fe174254aca 26786624 libdevel optional libstd-rust-dev_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ dc1b7f181ddbcf4e0e94882ea14ca65f 12386588 doc optional rust-doc_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ e251eba9933ec78eb6c75e41f7a2438a 173512 devel optional rust-gdb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ 2a6568473b5cb3ee97583ff5f44b29b8 177496 devel optional rust-lldb_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ ae555338a36ec4e676101099b4323bc1 12257352 devel optional rust-src_1.48.0+dfsg1-2co1bv2023dev2b4_all.deb
+ cc9620ad2204a624dee49bd5bbee51cf 254820 debug optional rustc-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb
+ 2148d9fe90cf5a090c98a30cd3f72370 14961 devel optional rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.buildinfo
+ cefbd37018db3a342f8416b3a3c895ca 1864892 devel optional rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb

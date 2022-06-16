@@ -1,0 +1,207 @@
+[
+  {
+    "Must": {
+      "AddDeb": "bsdextrautils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "bsdextrautils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "bsdutils_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "bsdutils-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "eject_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "eject-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "eject-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "fdisk_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "fdisk-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "fdisk-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libblkid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libblkid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libblkid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libblkid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libfdisk1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libfdisk1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libfdisk1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libfdisk-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libmount1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libmount1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libmount1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libmount-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libsmartcols1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libsmartcols1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libsmartcols1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libsmartcols-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libuuid1_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libuuid1-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "libuuid1-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "mount_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "mount-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "rfkill_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "rfkill-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "util-linux_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "util-linux-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "util-linux-locales_2.36.1-8+deb11u1+apertis1bv2023dev2b3_all.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "util-linux-udeb_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.udeb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "uuid-dev_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "uuid-runtime_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDeb": "uuid-runtime-dbgsym_2.36.1-8+deb11u1+apertis1bv2023dev2b3_amd64.deb"
+    }
+  },
+  {
+    "Must": {
+      "AddDsc": "util-linux_2.36.1-8+deb11u1+apertis1.dsc"
+    }
+  }
+]

@@ -1,0 +1,27 @@
+[package]
+name = "obs2aptly"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.57"
+aptly-rest = { path = "../aptly-rest", version = "0.1.0" }
+url = "2.2.2"
+tokio = { version = "1.19.2", features = ["full"] }
+
+tokio-util = { version = "0.7.3", features = ["compat"] }
+async-walkdir = "0.2.0"
+clap = { version = "4", features = ["derive"] }
+debian-packaging = "0.15.0"
+futures = "0.3.21"
+walker = "1.0.1"
+aptly-rest-mock = { version = "0.0.1", path = "../aptly-rest-mock" }
+serde = "1.0.143"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
+async-trait = "0.1.58"
+
+[dev-dependencies]
+serde_json = "1.0.83"
