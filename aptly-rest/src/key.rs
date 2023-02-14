@@ -1,7 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
 use debian_packaging::package_version::PackageVersion;
-use serde::Deserialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 #[derive(Debug, Clone, PartialEq, Eq, Ord, Hash, DeserializeFromStr, SerializeDisplay)]

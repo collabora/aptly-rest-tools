@@ -1,7 +1,6 @@
-use aptly_rest::changes::ChangesFileToAptlyKeyError;
+use aptly_rest::dsc::Dsc;
 use aptly_rest::key::AptlyKey;
 use aptly_rest::utils::scanner::{self, Scanner};
-use aptly_rest::{changes::Changes, dsc::Dsc};
 use futures::TryStreamExt;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

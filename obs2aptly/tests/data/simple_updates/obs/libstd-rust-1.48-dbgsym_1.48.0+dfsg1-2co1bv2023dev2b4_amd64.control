@@ -1,0 +1,13 @@
+Package: libstd-rust-1.48-dbgsym
+Source: rustc
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Installed-Size: 249973
+Depends: libstd-rust-1.48 (= 1.48.0+dfsg1-2co1bv2023dev2b4)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libstd-rust-1.48
+Build-Ids: 1927d01682f9aafa0e01a67519f8ffe4b0bbcc19 2afebde0f0c916aee44749ae8e14e4ead8650d1a 4dd4f7a6c8325c27d5924a0684f75d05738675e9 a04c656bf1621a2a472ed2c90ba171f1b8c6a3e6 d0ff3bc09e29b8fca00f66d96fc799f4095bd59e dfa62c881f1ac6472f4ef03ccfff6edb2a48e6c2

@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use aptly_rest::{
-    changes::{Changes, ChangesFileToAptlyKeyError},
+    changes::Changes,
     dsc::Dsc,
     key::AptlyKey,
     utils::scanner::{self, Scanner},
