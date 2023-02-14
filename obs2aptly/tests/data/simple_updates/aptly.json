@@ -26,7 +26,7 @@
         "Pall rust-doc 1.48.0+dfsg1-2 21341ad8ea22dc04",
         "Parmhf libstd-rust-1.48 1.48.0+dfsg1-2 7d5dcd8a5f4addee",
         "Pamd64 rustc 1.48.0+dfsg1-2 87415bdc9ef60793",
-        "Pamd64 rustc 1.48.0+dfsg1-2+fake 87415bdc9ef6dead",
+        "Pamd64 rustc 1.48.0+dfsg1-1+fake 87415bdc9ef6dead",
         "Psource rustc 1.48.0+dfsg1-2 1874ac1ecae98276"
       ]
     }
@@ -139,11 +139,11 @@
       "Depends": "libc6 (>= 2.14), libgcc-s1 (>= 3.0), libstd-rust-dev (= 1.48.0+dfsg1-2), gcc, libc-dev, binutils (>= 2.26)",
       "Description": " Rust systems programming language\n",
       "Description-Md5": "67ca6080eea53dc7f3cdf73bc6b8521e",
-      "Filename": "rustc_1.48.0+dfsg1-2+fake_amd64.deb",
+      "Filename": "rustc_1.48.0+dfsg1-1+fake_amd64.deb",
       "FilesHash": "87415bdc9ef6dead",
       "Homepage": "http://www.rust-lang.org/",
       "Installed-Size": "5720",
-      "Key": "Pamd64 rustc 1.48.0+dfsg1-2+fake 87415bdc9ef6dead",
+      "Key": "Pamd64 rustc 1.48.0+dfsg1-1+fake 87415bdc9ef6dead",
       "MD5sum": "0302b014f85fc6a49418fae4ee34ea71",
       "Maintainer": "Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>",
       "Multi-Arch": "allowed",
@@ -155,10 +155,10 @@
       "SHA256": "3cc857f1d9d5970d5d8ced830efb054520f820a4a496b6e55d68dbae19270137",
       "SHA512": "eece2581b0fb8804e360a70c4323ac4de78ed7a8753f8879bc84e0a540e23cbfb35e852abcc55500fd36ff491ae4fcb1f41c974e7e7ad8fba9b7bc453d769c68",
       "Section": "rust",
-      "ShortKey": "Pamd64 rustc 1.48.0+dfsg1-2+fake",
+      "ShortKey": "Pamd64 rustc 1.48.0+dfsg1-1+fake",
       "Size": "2049372",
       "Suggests": "rust-doc, rust-src, lld-11",
-      "Version": "1.48.0+dfsg1-2+fake"
+      "Version": "1.48.0+dfsg1-1+fake"
     },
     {
       "Architecture": "amd64",
