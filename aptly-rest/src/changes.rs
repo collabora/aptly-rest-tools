@@ -11,8 +11,6 @@ use std::{
 use tokio::fs::File;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
-use crate::key::AptlyKey;
-
 #[derive(thiserror::Error, Debug)]
 pub enum ChangesError {
     #[error("Missing Files line")]

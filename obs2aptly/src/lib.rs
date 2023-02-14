@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use debian_packaging::{
     deb::reader::{BinaryPackageEntry, BinaryPackageReader, ControlTarFile},
     package_version::PackageVersion,
@@ -9,7 +9,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Display,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 use tracing::{debug, info, warn};
 
