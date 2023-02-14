@@ -1,11 +1,14 @@
 use std::{
-    fs::File,
+    ffi::OsStr,
+    fs::{self, File},
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
 use anyhow::{bail, Result};
 use aptly_rest::AptlyRest;
 use aptly_rest_mock::AptlyRestMock;
+use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use obs2aptly::{AptlyContent, ObsContent, SyncAction};
 use serde::{Deserialize, Serialize};
 
@@ -94,13 +97,35 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, repo).await.unwrap();
 
     let obs_path = data_path(&path, "obs");
-    let obs_content = ObsContent::new_from_path(obs_path.clone()).await.unwrap();
+    let obs_temp_dir = tempfile::tempdir().unwrap();
+
+    for entry in std::fs::read_dir(&obs_path).unwrap() {
+        let entry = entry.unwrap();
+        let dest = obs_temp_dir.path().join(entry.file_name());
+        if dest.extension() == Some(OsStr::new("control")) {
+            let control_file = File::open(entry.path()).unwrap();
+            let mut control_rd = BufReader::new(control_file);
+            let control = ControlFile::parse_reader(&mut control_rd).unwrap();
+            let deb = DebBuilder::new(control);
+
+            let dest = dest.with_extension("deb");
+            println!("write {}", dest.display());
+            let mut dest_file = File::create(dest).unwrap();
+            deb.write(&mut dest_file).unwrap();
+        } else {
+            fs::copy(entry.path(), obs_temp_dir.path().join(entry.file_name())).unwrap();
+        }
+    }
+
+    let obs_content = ObsContent::new_from_path(obs_temp_dir.path().to_owned())
+        .await
+        .unwrap();
 
     let actions = obs2aptly::sync(aptly, obs_content, aptly_contents)
         .await
         .unwrap();
     let expected = load_expected_actions(&data_path(&path, "expected.json"));
-    compare_actions(actions.actions(), expected, &obs_path).unwrap();
+    compare_actions(actions.actions(), expected, obs_temp_dir.path()).unwrap();
 }
 
 #[tokio::test]

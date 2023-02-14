@@ -1,0 +1,28 @@
+Package: libstd-rust-dev-wasm32
+Source: rustc
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Architecture: all
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Installed-Size: 183695
+Recommends: lld-11
+Suggests: clang-11
+Section: libdevel
+Priority: optional
+Multi-Arch: foreign
+Homepage: http://www.rust-lang.org/
+Description: Rust standard libraries - development files
+ Rust is a curly-brace, block-structured expression language.  It
+ visually resembles the C language family, but differs significantly
+ in syntactic and semantic details.  Its design is oriented toward
+ concerns of "programming in the large", that is, of creating and
+ maintaining boundaries - both abstract and operational - that
+ preserve large-system integrity, availability and concurrency.
+ .
+ It supports a mixture of imperative procedural, concurrent actor,
+ object-oriented and pure functional styles.  Rust also supports
+ generic programming and meta-programming, in both static and dynamic
+ styles.
+ .
+ This package contains the standard Rust libraries including development files,
+ needed to cross-compile Rust programs to the wasm32-unknown-unknown and
+ wasm32-wasi targets.
