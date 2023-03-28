@@ -571,7 +571,7 @@ where
             aptly_iter.next();
         } else {
             // Package in aptly but not in obs (anymore)
-            info!("== No longer in OBS:  {a} ==");
+            info!("== No longer in OBS: {a} ==");
             for key in a_v.keys().cloned() {
                 actions.remove_aptly(key)
             }
@@ -787,7 +787,7 @@ pub async fn sync(
     )
     .await?;
 
-    info!(" == Ssyncing sources == ");
+    info!(" == Syncing sources == ");
     let mut syncer = SourceSyncer {};
     sync_packages(
         &mut obs_content.sources.iter(),
