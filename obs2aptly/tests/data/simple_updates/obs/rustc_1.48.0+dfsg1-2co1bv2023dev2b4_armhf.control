@@ -1,0 +1,26 @@
+Package: rustc
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Architecture: armhf
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Installed-Size: 4836
+Depends: libc6 (>= 2.4), libgcc-s1 (>= 3.5), libstd-rust-dev (= 1.48.0+dfsg1-2co1bv2023dev2b4), gcc, libc-dev, binutils (>= 2.26)
+Recommends: cargo (>= 0.49.0~~), cargo (<< 0.50.0~~), rust-gdb | rust-lldb
+Suggests: rust-doc, rust-src, lld-11
+Breaks: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
+Replaces: libstd-rust-dev (<< 1.25.0+dfsg1-2~~)
+Section: devel
+Priority: optional
+Multi-Arch: allowed
+Homepage: http://www.rust-lang.org/
+Description: Rust systems programming language
+ Rust is a curly-brace, block-structured expression language.  It
+ visually resembles the C language family, but differs significantly
+ in syntactic and semantic details.  Its design is oriented toward
+ concerns of "programming in the large", that is, of creating and
+ maintaining boundaries - both abstract and operational - that
+ preserve large-system integrity, availability and concurrency.
+ .
+ It supports a mixture of imperative procedural, concurrent actor,
+ object-oriented and pure functional styles.  Rust also supports
+ generic programming and meta-programming, in both static and dynamic
+ styles.
