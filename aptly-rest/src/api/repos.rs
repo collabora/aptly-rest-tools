@@ -18,6 +18,49 @@ impl RepoApi<'_> {
     pub fn files(&self) -> RepoApiFiles {
         RepoApiFiles { repo: self }
     }
+
+    pub async fn get(&self) -> Result<Repo, AptlyRestError> {
+        self.aptly
+            .get(self.aptly.url(&["api", "repos", &self.name]))
+            .await
+    }
+
+    pub async fn snapshot(
+        &self,
+        name: &str,
+        options: &SnapshotOptions,
+    ) -> Result<crate::Snapshot, AptlyRestError> {
+        #[derive(Debug, Clone, Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct SnapshotRequest<'a> {
+            name: &'a str,
+            #[serde(flatten)]
+            options: &'a SnapshotOptions,
+        }
+
+        self.aptly
+            .post_body(
+                self.aptly.url(&["api", "repos", &self.name, "snapshots"]),
+                &SnapshotRequest { name, options },
+            )
+            .await
+    }
+
+    pub async fn delete(&self, options: &DeleteOptions) -> Result<(), AptlyRestError> {
+        let mut url = self.aptly.url(&["api", "repos", &self.name]);
+
+        {
+            let mut pairs = url.query_pairs_mut();
+            if options.force {
+                pairs.append_pair("force", "1");
+            }
+        }
+
+        self.aptly
+            .send_request(self.aptly.client.delete(url))
+            .await?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -127,6 +170,7 @@ impl RepoApiPackagesQuery<'_> {
             .await
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct RepoApiFiles<'a> {
     repo: &'a crate::RepoApi<'a>,
@@ -178,7 +222,7 @@ impl RepoApiFiles<'_> {
 }
 
 #[serde_as]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Repo {
     name: String,
@@ -193,6 +237,15 @@ pub struct Repo {
 }
 
 impl Repo {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            comment: None,
+            distribution: None,
+            component: None,
+        }
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
@@ -201,12 +254,27 @@ impl Repo {
         self.comment.as_deref()
     }
 
+    pub fn with_comment(self, comment: Option<String>) -> Self {
+        Self { comment, ..self }
+    }
+
     pub fn distribution(&self) -> Option<&str> {
         self.distribution.as_deref()
     }
 
+    pub fn with_distribution(self, distribution: Option<String>) -> Self {
+        Self {
+            distribution,
+            ..self
+        }
+    }
+
     pub fn component(&self) -> Option<&str> {
         self.component.as_deref()
+    }
+
+    pub fn with_component(self, component: Option<String>) -> Self {
+        Self { component, ..self }
     }
 }
 
@@ -255,8 +323,19 @@ impl OperationReport {
     }
 }
 
+#[derive(Default, Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SnapshotOptions {
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DeleteOptions {
+    pub force: bool,
+}
+
 #[serde_as]
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct Source {
     package: String,
@@ -293,7 +372,7 @@ impl Source {
 }
 
 #[serde_as]
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct Binary {
     package: String,
@@ -329,7 +408,7 @@ impl Binary {
     }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum Package {
     Binary(Binary),
