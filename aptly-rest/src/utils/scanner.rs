@@ -21,10 +21,10 @@ pub enum Found {
 pub enum ScannerError {
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
-    #[error("Parsing changes: {0}")]
-    Changes(#[from] ChangesError),
-    #[error("Parsing dsc: {0}")]
-    Dsc(#[from] DscError),
+    #[error("Parsing changes file '{0}': {1}")]
+    Changes(PathBuf, ChangesError),
+    #[error("Parsing dsc '{0}': {1}")]
+    Dsc(PathBuf, DscError),
 }
 
 pub struct Scanner {
@@ -102,15 +102,15 @@ fn do_walk_inner(
                 tokio::spawn(async move {
                     let _ = s.acquire().await;
                     let control = if path.extension().unwrap() == "changes" {
-                        Changes::from_file(path)
+                        Changes::from_file(path.clone())
                             .await
                             .map(Found::Changes)
-                            .map_err(|e| e.into())
+                            .map_err(|e| ScannerError::Changes(path, e))
                     } else {
-                        Dsc::from_file(path)
+                        Dsc::from_file(path.clone())
                             .await
                             .map(Found::Dsc)
-                            .map_err(|e| e.into())
+                            .map_err(|e| ScannerError::Dsc(path, e))
                     };
 
                     let _ = tx.send(control).await;
