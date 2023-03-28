@@ -2057,6 +2057,7 @@ dependencies = [
  "color-eyre",
  "debian-packaging",
  "futures",
+ "http",
  "serde",
  "serde_json",
  "tempfile",

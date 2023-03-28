@@ -17,6 +17,9 @@ struct Opts {
     aptly_repo: String,
     /// Directory with obs repositories
     obs_repo: PathBuf,
+    /// Only show changes, don't apply them
+    #[clap(short = 'n', long, default_value_t = false)]
+    dry_run: bool,
 }
 
 #[tokio::main]
@@ -29,9 +32,13 @@ async fn main() -> Result<()> {
     let opts = Opts::parse();
     let aptly = AptlyRest::new(opts.url);
 
-    let aptly_contents = AptlyContent::new_from_aptly(&aptly, &opts.aptly_repo).await?;
+    let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
     let obs_content = ObsContent::new_from_path(opts.obs_repo).await?;
 
-    obs2aptly::sync(aptly, obs_content, aptly_contents).await?;
+    let actions = obs2aptly::sync(aptly, obs_content, aptly_contents).await?;
+    if !opts.dry_run {
+        actions.apply().await?;
+    }
+
     Ok(())
 }

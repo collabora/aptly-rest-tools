@@ -11,17 +11,19 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Display,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
+use tokio::fs::File;
 use tracing::{debug, error, info, warn};
 
 use aptly_rest::{
+    api::files::UploadFiles,
     changes::Changes,
     dsc::Dsc,
     key::AptlyKey,
     utils::scanner::{self, Scanner},
-    AptlyRest,
+    AptlyRest, AptlyRestError,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -92,8 +94,9 @@ impl AptlyPackage {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct AptlyContent {
+    repo: String,
     // Archicture -> packages -> aptlykey
     binary_arch: HashMap<String, BTreeMap<PackageName, AptlyPackage>>,
     // Package -> list of packages
@@ -103,19 +106,24 @@ pub struct AptlyContent {
 }
 
 impl AptlyContent {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     #[tracing::instrument]
-    pub async fn new_from_aptly(aptly: &AptlyRest, repo: &str) -> Result<Self> {
-        let packages = aptly.repo(repo).packages().list().await?;
-        let mut content = AptlyContent::new();
+    pub async fn new_from_aptly(aptly: &AptlyRest, repo: String) -> Result<Self> {
+        let packages = aptly.repo(&repo).packages().list().await?;
+        let mut content = AptlyContent {
+            repo,
+            binary_arch: Default::default(),
+            binary_indep: Default::default(),
+            sources: Default::default(),
+        };
 
         for p in packages {
             content.add_key(p);
         }
         Ok(content)
+    }
+
+    pub fn repo(&self) -> &str {
+        &self.repo
     }
 
     pub fn add_key(&mut self, key: AptlyKey) {
@@ -486,7 +494,7 @@ impl Syncer for SourceSyncer {
     #[tracing::instrument(skip_all)]
     async fn add(&self, obs: &Self::Obs, actions: &mut SyncActions) -> Result<()> {
         for source in &obs.sources {
-            actions.add_dsc(source.dsc.path().to_path_buf());
+            actions.add_dsc(&source)?;
         }
 
         Ok(())
@@ -510,7 +518,7 @@ impl Syncer for SourceSyncer {
             if d.aptly_hash != a.hash() {
                 // TODO make sure version is upgraded
                 actions.remove_aptly(a.clone());
-                actions.add_dsc(d.dsc.path().to_path_buf());
+                actions.add_dsc(&d)?;
             }
         } else {
             todo!("unimplemented");
@@ -576,20 +584,22 @@ where
 #[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SyncAction {
     AddDeb(PathBuf),
-    AddDsc(PathBuf),
+    AddDsc(Vec<PathBuf>),
     RemoveAptly(AptlyKey),
 }
 
 #[derive(Debug)]
 pub struct SyncActions {
     aptly: AptlyRest,
+    repo: String,
     actions: Vec<SyncAction>,
 }
 
 impl SyncActions {
-    fn new(aptly: AptlyRest) -> Self {
+    fn new(aptly: AptlyRest, repo: String) -> Self {
         Self {
             aptly,
+            repo,
             actions: Vec::new(),
         }
     }
@@ -599,9 +609,30 @@ impl SyncActions {
         self.actions.push(SyncAction::AddDeb(d.path.clone()));
     }
 
-    fn add_dsc(&mut self, d: PathBuf) {
-        info!("Add dsc: {}", d.display());
-        self.actions.push(SyncAction::AddDsc(d));
+    #[tracing::instrument(skip_all)]
+    fn add_dsc(&mut self, d: &ObsDsc) -> Result<()> {
+        let dsc_path = d.dsc.path();
+        info!("Add dsc: {}", dsc_path.display());
+
+        let (dsc_parent, dsc_filename) = match (dsc_path.parent(), dsc_path.file_name()) {
+            (Some(parent), Some(filename)) => (parent, filename),
+            _ => bail!("Invalid .dsc path '{}'", dsc_path.display()),
+        };
+
+        let all_paths = std::iter::once(dsc_path.to_owned())
+            .chain(
+                d.dsc
+                    .files()?
+                    .iter()
+                    // The .dsc references itself, so make sure we remove that
+                    // to avoid duplicates.
+                    .filter(|f| f.name.as_str() != dsc_filename)
+                    .map(|f| dsc_parent.join(&f.name)),
+            )
+            .collect();
+
+        self.actions.push(SyncAction::AddDsc(all_paths));
+        Ok(())
     }
 
     fn remove_aptly(&mut self, k: AptlyKey) {
@@ -612,6 +643,103 @@ impl SyncActions {
     pub fn actions(&self) -> &[SyncAction] {
         &self.actions
     }
+
+    #[tracing::instrument(skip_all)]
+    async fn upload_file(&self, directory: String, path: &Path) -> Result<()> {
+        info!("Uploading {}", path.display());
+
+        let filename = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .map(|f| f.to_owned())
+            .ok_or_else(|| eyre!("Invalid path"))?;
+
+        let file = File::open(path).await?;
+        self.aptly
+            .files()
+            .directory(directory)
+            .upload(UploadFiles::new().file(filename, file))
+            .await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub async fn apply(&self) -> Result<()> {
+        if self.actions.is_empty() {
+            info!("Nothing to do.");
+            return Ok(());
+        }
+
+        const DIR: &str = "obs2aptly";
+        if let Err(err) = self.aptly.files().directory(DIR.to_owned()).delete().await {
+            let AptlyRestError::Request(inner) = &err;
+            if inner.status() != Some(http::StatusCode::NOT_FOUND) {
+                return Err(err.into());
+            }
+        }
+
+        let mut uploaded_files = 0;
+        let mut to_remove = HashSet::<AptlyKey>::new();
+
+        for action in &self.actions {
+            match action {
+                SyncAction::AddDeb(path) => {
+                    self.upload_file(DIR.to_owned(), path).await?;
+                    uploaded_files += 1;
+                }
+                SyncAction::AddDsc(paths) => {
+                    for path in paths {
+                        self.upload_file(DIR.to_owned(), path).await?;
+                    }
+                    uploaded_files += 1;
+                }
+                SyncAction::RemoveAptly(key) => {
+                    to_remove.insert(key.clone());
+                }
+            }
+        }
+
+        if uploaded_files != 0 {
+            info!("Adding {} file(s) to repository...", uploaded_files);
+
+            let response = self
+                .aptly
+                .repo(&self.repo)
+                .files()
+                .add_directory(DIR, &Default::default())
+                .await?;
+            debug!(?response);
+
+            let warnings = response.report().warnings();
+            if !warnings.is_empty() {
+                warn!("Received {} warning(s):", warnings.len());
+                for warning in warnings {
+                    warn!(?warning);
+                }
+            }
+
+            if !response.failed_files.is_empty() {
+                error!("{} file(s) failed.", response.failed_files.len());
+                bail!("Upload failed");
+            }
+
+            info!("Upload complete.");
+        }
+
+        if !to_remove.is_empty() {
+            info!("Deleting {} package(s) from repository...", uploaded_files);
+
+            self.aptly
+                .repo(&self.repo)
+                .packages()
+                .delete(&to_remove)
+                .await?;
+
+            info!("Deletion complete.");
+        }
+
+        Ok(())
+    }
 }
 
 /// Calculate what needs to be done to sync from obs repos to aptly
@@ -621,7 +749,7 @@ pub async fn sync(
     obs_content: ObsContent,
     aptly_content: AptlyContent,
 ) -> Result<SyncActions> {
-    let mut actions = SyncActions::new(aptly);
+    let mut actions = SyncActions::new(aptly, aptly_content.repo().to_owned());
     let architectures: HashSet<_> = obs_content
         .binary_arch
         .keys()

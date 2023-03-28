@@ -33,7 +33,7 @@ impl ExpectedAction {
                 a.strip_prefix(path_prefix).unwrap() == e
             }
             (SyncAction::AddDsc(e), SyncAction::AddDsc(a)) => {
-                a.strip_prefix(path_prefix).unwrap() == e
+                a[0].strip_prefix(path_prefix).unwrap() == e[0]
             }
             (SyncAction::RemoveAptly(e), SyncAction::RemoveAptly(a)) => e == a,
             _ => false,
@@ -94,7 +94,9 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
 
     let aptly = AptlyRest::new(mock.url());
 
-    let aptly_contents = AptlyContent::new_from_aptly(&aptly, repo).await.unwrap();
+    let aptly_contents = AptlyContent::new_from_aptly(&aptly, repo.to_owned())
+        .await
+        .unwrap();
 
     let obs_path = data_path(&path, "obs");
     let obs_temp_dir = tempfile::tempdir().unwrap();
