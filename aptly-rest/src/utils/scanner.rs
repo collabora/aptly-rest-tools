@@ -21,6 +21,8 @@ pub enum Found {
 pub enum ScannerError {
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
+    #[error("Walking directory: {0}")]
+    Walk(#[from] walkdir::Error),
     #[error("Parsing changes file '{0}': {1}")]
     Changes(PathBuf, ChangesError),
     #[error("Parsing dsc '{0}': {1}")]
@@ -91,12 +93,12 @@ fn do_walk_inner(
     tx: Sender<Result<Found, ScannerError>>,
     s: Arc<Semaphore>,
 ) -> Result<(), ScannerError> {
-    let dir = walker::Walker::new(&path)?;
+    let dir = walkdir::WalkDir::new(&path);
     for entry in dir {
         let entry = entry?;
         if let Some(name) = entry.file_name().to_str() {
             if name.ends_with(".changes") || name.ends_with(".dsc") {
-                let path = entry.path();
+                let path = entry.path().to_owned();
                 let s = s.clone();
                 let tx = tx.clone();
                 tokio::spawn(async move {
