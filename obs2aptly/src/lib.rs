@@ -1,4 +1,7 @@
-use anyhow::{anyhow, Result};
+use color_eyre::{
+    eyre::{bail, eyre},
+    Result,
+};
 use debian_packaging::{
     deb::reader::{BinaryPackageEntry, BinaryPackageReader, ControlTarFile},
     package_version::PackageVersion,
@@ -11,7 +14,7 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use aptly_rest::{
     changes::Changes,
@@ -75,6 +78,7 @@ impl AptlyPackage {
         self.keys.iter()
     }
 
+    #[tracing::instrument]
     pub fn newest(&self) -> Result<&AptlyKey> {
         self.keys()
             .reduce(|acc, key| {
@@ -84,7 +88,7 @@ impl AptlyPackage {
                     acc
                 }
             })
-            .ok_or_else(|| anyhow!("Aptly package without keys"))
+            .ok_or_else(|| eyre!("Aptly package without keys"))
     }
 }
 
@@ -103,6 +107,7 @@ impl AptlyContent {
         Default::default()
     }
 
+    #[tracing::instrument]
     pub async fn new_from_aptly(aptly: &AptlyRest, repo: &str) -> Result<Self> {
         let packages = aptly.repo(repo).packages().list().await?;
         let mut content = AptlyContent::new();
@@ -148,6 +153,7 @@ struct ObsDeb {
 }
 
 impl ObsDeb {
+    #[tracing::instrument]
     fn version(&self) -> Result<PackageVersion> {
         let f = std::fs::File::open(&self.path)?;
         let mut parser = BinaryPackageReader::new(f)?;
@@ -164,7 +170,7 @@ impl ObsDeb {
             }
         }
 
-        Err(anyhow!("Version not found in .deb"))
+        bail!("Version not found in {}", self.path.display());
     }
 }
 
@@ -200,11 +206,12 @@ impl ObsPackage {
         self.debs.push(deb)
     }
 
+    #[tracing::instrument]
     fn newest(&self) -> Result<&ObsDeb> {
         let mut n = self
             .debs
             .get(0)
-            .ok_or_else(|| anyhow!("No debs in package"))?;
+            .ok_or_else(|| eyre!("No debs in package"))?;
         for deb in &self.debs[1..] {
             if deb.version()? > n.version()? {
                 n = deb;
@@ -246,6 +253,7 @@ pub struct ObsContent {
 }
 
 impl ObsContent {
+    #[tracing::instrument]
     pub async fn new_from_path(path: PathBuf) -> Result<Self> {
         let mut content: Self = Default::default();
         let mut scanner = Scanner::new(path);
@@ -259,6 +267,7 @@ impl ObsContent {
         Ok(content)
     }
 
+    #[tracing::instrument(skip_all)]
     fn add_dsc(&mut self, dsc: Dsc) -> Result<()> {
         let a: AptlyKey = (&dsc).try_into()?;
         let package: PackageName = a.package().into();
@@ -274,6 +283,7 @@ impl ObsContent {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     fn add_changes(&mut self, changes: Changes) -> Result<()> {
         for f in changes.files()? {
             if !f.name.ends_with(".deb") && !f.name.ends_with(".udeb") {
@@ -327,12 +337,14 @@ struct BinaryDepSyncer {}
 impl Syncer for BinaryDepSyncer {
     type Obs = ObsPackage;
 
+    #[tracing::instrument(skip_all)]
     async fn add(&self, obs: &Self::Obs, actions: &mut SyncActions) -> Result<()> {
         let obs_newest = obs.newest()?;
         actions.add_deb(obs_newest);
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     async fn sync(
         &self,
         obs: &Self::Obs,
@@ -359,6 +371,8 @@ struct BinaryInDepSyncer {}
 #[async_trait::async_trait]
 impl Syncer for BinaryInDepSyncer {
     type Obs = ObsPackage;
+
+    #[tracing::instrument(skip_all)]
     async fn add(&self, obs: &Self::Obs, actions: &mut SyncActions) -> Result<()> {
         // Only add the newest arch all package; Potential future update could be to add one deb
         // for each *version*
@@ -367,6 +381,7 @@ impl Syncer for BinaryInDepSyncer {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     async fn sync(
         &self,
         obs: &Self::Obs,
@@ -468,6 +483,7 @@ struct SourceSyncer {}
 impl Syncer for SourceSyncer {
     type Obs = ObsSource;
 
+    #[tracing::instrument(skip_all)]
     async fn add(&self, obs: &Self::Obs, actions: &mut SyncActions) -> Result<()> {
         for source in &obs.sources {
             actions.add_dsc(source.dsc.path().to_path_buf());
@@ -476,6 +492,7 @@ impl Syncer for SourceSyncer {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     async fn sync(
         &self,
         obs: &Self::Obs,
@@ -504,6 +521,7 @@ impl Syncer for SourceSyncer {
 }
 
 // Calculate operation need to sync obs into aptly
+#[tracing::instrument(skip_all)]
 async fn sync_packages<S, O>(
     obs_iter: &mut dyn Iterator<Item = (&PackageName, &O)>,
     aptly_iter: &mut dyn Iterator<Item = (&PackageName, &AptlyPackage)>,
@@ -597,6 +615,7 @@ impl SyncActions {
 }
 
 /// Calculate what needs to be done to sync from obs repos to aptly
+#[tracing::instrument(skip_all)]
 pub async fn sync(
     aptly: AptlyRest,
     obs_content: ObsContent,

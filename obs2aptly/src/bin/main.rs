@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
 use aptly_rest::AptlyRest;
 use clap::Parser;
+use color_eyre::Result;
 use obs2aptly::{AptlyContent, ObsContent};
+use tracing::metadata::LevelFilter;
+use tracing_error::ErrorLayer;
+use tracing_subscriber::prelude::*;
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -18,7 +21,11 @@ struct Opts {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::registry()
+        .with(ErrorLayer::default())
+        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+        .init();
+    color_eyre::install().unwrap();
     let opts = Opts::parse();
     let aptly = AptlyRest::new(opts.url);
 

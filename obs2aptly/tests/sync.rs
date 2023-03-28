@@ -5,9 +5,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
 use aptly_rest::AptlyRest;
 use aptly_rest_mock::AptlyRestMock;
+use color_eyre::{eyre::eyre, Result};
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use obs2aptly::{AptlyContent, ObsContent, SyncAction};
 use serde::{Deserialize, Serialize};
@@ -76,13 +76,13 @@ fn compare_actions(
             expected.swap_remove(i);
         } else {
             eprintln!("- Unexpected action: {:?}", action);
-            r = Err(anyhow::anyhow!("Actions didn't match"));
+            r = Err(eyre!("Actions didn't match"));
         }
     }
 
     for action in expected {
         eprintln!("- Missing action: {:?}", action);
-        r = Err(anyhow::anyhow!("Actions didn't match"));
+        r = Err(eyre!("Actions didn't match"));
     }
 
     r
