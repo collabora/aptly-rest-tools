@@ -1,4 +1,5 @@
 use api::{
+    files::FilesApi,
     packages::PackagesApi,
     repos::{Repo, RepoApi},
 };
@@ -59,6 +60,10 @@ impl AptlyRest {
         }
     }
 
+    pub fn files(&self) -> FilesApi {
+        FilesApi { aptly: self }
+    }
+
     pub fn packages(&self) -> PackagesApi {
         PackagesApi { aptly: self }
     }
@@ -77,7 +82,27 @@ impl AptlyRest {
     where
         T: serde::de::DeserializeOwned,
     {
-        let r = self.client.get(url).send().await?.error_for_status()?;
-        Ok(r.json().await?)
+        self.json_request(self.client.get(url)).await
+    }
+
+    async fn post<'a, T>(&self, url: Url) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.json_request(self.client.post(url)).await
+    }
+
+    async fn send_request(
+        &self,
+        req: reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response, AptlyRestError> {
+        Ok(req.send().await?.error_for_status()?)
+    }
+
+    async fn json_request<T>(&self, req: reqwest::RequestBuilder) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        Ok(self.send_request(req).await?.json().await?)
     }
 }
