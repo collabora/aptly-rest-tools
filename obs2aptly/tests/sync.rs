@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use aptly_rest::AptlyRest;
 use aptly_rest_mock::AptlyRestMock;
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
