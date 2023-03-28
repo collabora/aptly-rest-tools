@@ -10,6 +10,7 @@ use aptly_rest_mock::AptlyRestMock;
 use color_eyre::{eyre::eyre, Result};
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use obs2aptly::{AptlyContent, ObsContent, SyncAction};
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
 fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf {
@@ -88,7 +89,12 @@ fn compare_actions(
     r
 }
 
+static TRACING_INIT: OnceCell<()> = OnceCell::new();
+
 async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
+    TRACING_INIT.get_or_init(|| {
+        tracing_subscriber::fmt::init();
+    });
     let mock = AptlyRestMock::start().await;
     mock.load_data(&data_path(&path, "aptly.json"));
 
