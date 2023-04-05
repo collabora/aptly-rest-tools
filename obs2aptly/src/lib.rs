@@ -1,5 +1,5 @@
 use color_eyre::{
-    eyre::{bail, eyre},
+    eyre::{bail, ensure, eyre},
     Result,
 };
 use debian_packaging::{
@@ -419,7 +419,6 @@ impl Syncer for BinaryInDepSyncer {
         //   get the exact version of the .deb as it may have an epoch which means it's newer
         //     -> shortcut if aplty has no epoch and changes version matches?
         //
-        //
         info!("=== Changes for {} ===", obs.package());
         let mut keep_in_aptly = Vec::new();
 
@@ -508,21 +507,31 @@ impl Syncer for SourceSyncer {
         aptly: &AptlyPackage,
         actions: &mut SyncActions,
     ) -> Result<()> {
-        // For source for a given package name only expect one from OBS and one from aptly
         // TODO let aptly keep all source version referred to by changes files? Though this would
         // need to account for build suffixes in some way
         // Simple case just one package on both sides
-        if obs.sources.len() == 1 {
-            let d = &obs.sources[0];
-            let a = aptly.keys().next().unwrap();
 
-            if d.aptly_hash != a.hash() {
-                // TODO make sure version is upgraded
-                actions.remove_aptly(a.clone());
-                actions.add_dsc(&d)?;
-            }
-        } else {
-            todo!("unimplemented");
+        let d = &obs.sources[0];
+        // If there are multiple source files, make sure their hashes are fully identical.
+        ensure!(
+            obs.sources
+                .iter()
+                .skip(1)
+                .all(|s| s.aptly_hash == d.aptly_hash),
+            "Multiple sources of different hashes for a single package: {:?}",
+            obs.sources
+                .iter()
+                .map(|s| s.dsc.path().display().to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
+
+        let a = aptly.keys().next().unwrap();
+
+        if d.aptly_hash != a.hash() {
+            // TODO make sure version is upgraded
+            actions.remove_aptly(a.clone());
+            actions.add_dsc(&d)?;
         }
 
         Ok(())
