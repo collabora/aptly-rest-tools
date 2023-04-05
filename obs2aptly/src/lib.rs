@@ -15,7 +15,7 @@ use std::{
     sync::Arc,
 };
 use tokio::fs::File;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, span, warn, Level};
 
 use aptly_rest::{
     api::files::UploadFiles,
@@ -297,6 +297,7 @@ impl ObsContent {
             if !f.name.ends_with(".deb") && !f.name.ends_with(".udeb") {
                 continue;
             }
+            let _span = span!(Level::INFO, "add_changes::file", ?f).entered();
             let info = f.parse_name()?;
             let package_name: PackageName = info.package.into();
             let deb = ObsDeb {
