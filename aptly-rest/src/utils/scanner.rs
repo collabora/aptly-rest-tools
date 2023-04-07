@@ -21,10 +21,12 @@ pub enum Found {
 pub enum ScannerError {
     #[error("IO Error: {0}")]
     IO(#[from] std::io::Error),
-    #[error("Parsing changes: {0}")]
-    Changes(#[from] ChangesError),
-    #[error("Parsing dsc: {0}")]
-    Dsc(#[from] DscError),
+    #[error("Walking directory: {0}")]
+    Walk(#[from] walkdir::Error),
+    #[error("Parsing changes file '{0}': {1}")]
+    Changes(PathBuf, ChangesError),
+    #[error("Parsing dsc '{0}': {1}")]
+    Dsc(PathBuf, DscError),
 }
 
 pub struct Scanner {
@@ -91,26 +93,26 @@ fn do_walk_inner(
     tx: Sender<Result<Found, ScannerError>>,
     s: Arc<Semaphore>,
 ) -> Result<(), ScannerError> {
-    let dir = walker::Walker::new(&path)?;
+    let dir = walkdir::WalkDir::new(&path);
     for entry in dir {
         let entry = entry?;
         if let Some(name) = entry.file_name().to_str() {
             if name.ends_with(".changes") || name.ends_with(".dsc") {
-                let path = entry.path();
+                let path = entry.path().to_owned();
                 let s = s.clone();
                 let tx = tx.clone();
                 tokio::spawn(async move {
                     let _ = s.acquire().await;
                     let control = if path.extension().unwrap() == "changes" {
-                        Changes::from_file(path)
+                        Changes::from_file(path.clone())
                             .await
                             .map(Found::Changes)
-                            .map_err(|e| e.into())
+                            .map_err(|e| ScannerError::Changes(path, e))
                     } else {
-                        Dsc::from_file(path)
+                        Dsc::from_file(path.clone())
                             .await
                             .map(Found::Dsc)
-                            .map_err(|e| e.into())
+                            .map_err(|e| ScannerError::Dsc(path, e))
                     };
 
                     let _ = tx.send(control).await;

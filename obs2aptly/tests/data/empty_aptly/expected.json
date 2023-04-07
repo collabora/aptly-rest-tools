@@ -201,7 +201,7 @@
   },
   {
     "Must": {
-      "AddDsc": "util-linux_2.36.1-8+deb11u1+apertis1.dsc"
+      "AddDsc": ["util-linux_2.36.1-8+deb11u1+apertis1.dsc"]
     }
   }
 ]

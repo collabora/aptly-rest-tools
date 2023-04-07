@@ -1,5 +1,5 @@
 use reqwest::Url;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr, NoneAsEmptyString};
 
 use crate::{key::AptlyKey, AptlyRestError};
@@ -14,6 +14,53 @@ impl RepoApi<'_> {
     pub fn packages(&self) -> RepoApiPackages {
         RepoApiPackages { repo: self }
     }
+
+    pub fn files(&self) -> RepoApiFiles {
+        RepoApiFiles { repo: self }
+    }
+
+    pub async fn get(&self) -> Result<Repo, AptlyRestError> {
+        self.aptly
+            .get(self.aptly.url(&["api", "repos", &self.name]))
+            .await
+    }
+
+    pub async fn snapshot(
+        &self,
+        name: &str,
+        options: &SnapshotOptions,
+    ) -> Result<crate::Snapshot, AptlyRestError> {
+        #[derive(Debug, Clone, Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct SnapshotRequest<'a> {
+            name: &'a str,
+            #[serde(flatten)]
+            options: &'a SnapshotOptions,
+        }
+
+        self.aptly
+            .post_body(
+                self.aptly.url(&["api", "repos", &self.name, "snapshots"]),
+                &SnapshotRequest { name, options },
+            )
+            .await
+    }
+
+    pub async fn delete(&self, options: &DeleteOptions) -> Result<(), AptlyRestError> {
+        let mut url = self.aptly.url(&["api", "repos", &self.name]);
+
+        {
+            let mut pairs = url.query_pairs_mut();
+            if options.force {
+                pairs.append_pair("force", "1");
+            }
+        }
+
+        self.aptly
+            .send_request(self.aptly.client.delete(url))
+            .await?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -22,11 +69,14 @@ pub struct RepoApiPackages<'a> {
 }
 
 impl RepoApiPackages<'_> {
-    fn url(&self, query: Option<&str>, with_deps: bool, detailed: bool) -> Url {
-        let mut url = self
-            .repo
+    fn base_url(&self) -> Url {
+        self.repo
             .aptly
-            .url(&["api", "repos", &self.repo.name, "packages"]);
+            .url(&["api", "repos", &self.repo.name, "packages"])
+    }
+
+    fn search_url(&self, query: Option<&str>, with_deps: bool, detailed: bool) -> Url {
+        let mut url = self.base_url();
 
         let mut pairs = url.query_pairs_mut();
         if let Some(query) = query {
@@ -49,7 +99,7 @@ impl RepoApiPackages<'_> {
         query: Option<&str>,
         with_deps: bool,
     ) -> Result<Vec<AptlyKey>, AptlyRestError> {
-        let url = self.url(query, with_deps, false);
+        let url = self.search_url(query, with_deps, false);
         self.repo.aptly.get(url).await
     }
 
@@ -58,7 +108,7 @@ impl RepoApiPackages<'_> {
         query: Option<&str>,
         with_deps: bool,
     ) -> Result<Vec<Package>, AptlyRestError> {
-        let url = self.url(query, with_deps, true);
+        let url = self.search_url(query, with_deps, true);
         self.repo.aptly.get(url).await
     }
 
@@ -76,6 +126,29 @@ impl RepoApiPackages<'_> {
             query,
             with_deps,
         }
+    }
+
+    pub async fn delete<'r, R>(&self, keys: R) -> Result<(), AptlyRestError>
+    where
+        R: IntoIterator<Item = &'r AptlyKey>,
+    {
+        #[derive(Debug, Clone, Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct DeleteRequest<'r> {
+            package_refs: Vec<&'r AptlyKey>,
+        }
+
+        let req = self
+            .repo
+            .aptly
+            .client
+            .delete(self.base_url())
+            .json(&DeleteRequest {
+                package_refs: keys.into_iter().collect(),
+            });
+        self.repo.aptly.send_request(req).await?;
+
+        Ok(())
     }
 }
 
@@ -98,8 +171,58 @@ impl RepoApiPackagesQuery<'_> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct RepoApiFiles<'a> {
+    repo: &'a crate::RepoApi<'a>,
+}
+
+impl RepoApiFiles<'_> {
+    fn url(&self, directory: &str, filename: Option<&str>, options: &AddPackageOptions) -> Url {
+        let mut path = vec!["api", "repos", &self.repo.name, "file", directory];
+        if let Some(filename) = filename {
+            path.push(filename);
+        }
+
+        let mut url = self.repo.aptly.url(path);
+
+        let mut pairs = url.query_pairs_mut();
+        if options.force_replace {
+            pairs.append_pair("forceReplace", "1");
+        }
+        if options.no_remove {
+            pairs.append_pair("noRemove", "1");
+        }
+
+        drop(pairs);
+        url
+    }
+
+    pub async fn add_directory(
+        &self,
+        directory: &str,
+        options: &AddPackageOptions,
+    ) -> Result<AddPackageResponse, AptlyRestError> {
+        self.repo
+            .aptly
+            .post(self.url(directory, None, options))
+            .await
+    }
+
+    pub async fn add_file(
+        &self,
+        directory: &str,
+        filename: &str,
+        options: &AddPackageOptions,
+    ) -> Result<AddPackageResponse, AptlyRestError> {
+        self.repo
+            .aptly
+            .post(self.url(directory, Some(filename), options))
+            .await
+    }
+}
+
 #[serde_as]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Repo {
     name: String,
@@ -114,6 +237,15 @@ pub struct Repo {
 }
 
 impl Repo {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            comment: None,
+            distribution: None,
+            component: None,
+        }
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
@@ -122,17 +254,88 @@ impl Repo {
         self.comment.as_deref()
     }
 
+    pub fn with_comment(self, comment: Option<String>) -> Self {
+        Self { comment, ..self }
+    }
+
     pub fn distribution(&self) -> Option<&str> {
         self.distribution.as_deref()
+    }
+
+    pub fn with_distribution(self, distribution: Option<String>) -> Self {
+        Self {
+            distribution,
+            ..self
+        }
     }
 
     pub fn component(&self) -> Option<&str> {
         self.component.as_deref()
     }
+
+    pub fn with_component(self, component: Option<String>) -> Self {
+        Self { component, ..self }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct AddPackageOptions {
+    pub no_remove: bool,
+    pub force_replace: bool,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct AddPackageResponse {
+    pub failed_files: Vec<String>,
+    pub report: OperationReport,
+}
+
+impl AddPackageResponse {
+    pub fn failed_files(&self) -> &[String] {
+        &self.failed_files
+    }
+
+    pub fn report(&self) -> &OperationReport {
+        &self.report
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct OperationReport {
+    warnings: Vec<String>,
+    added: Vec<String>,
+    removed: Vec<String>,
+}
+
+impl OperationReport {
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
+    }
+
+    pub fn added(&self) -> &[String] {
+        &self.added
+    }
+
+    pub fn removed(&self) -> &[String] {
+        &self.removed
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SnapshotOptions {
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DeleteOptions {
+    pub force: bool,
 }
 
 #[serde_as]
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct Source {
     package: String,
@@ -169,7 +372,7 @@ impl Source {
 }
 
 #[serde_as]
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct Binary {
     package: String,
@@ -205,7 +408,7 @@ impl Binary {
     }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum Package {
     Binary(Binary),

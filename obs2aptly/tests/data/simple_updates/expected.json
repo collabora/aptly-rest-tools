@@ -20,9 +20,9 @@
 { "Must": { "AddDeb": "libstd-rust-dev_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb" } },
 { "Must": { "AddDeb": "rustc-dbgsym_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb" } },
 { "Must": { "AddDeb": "rustc_1.48.0+dfsg1-2co1bv2023dev2b4_armhf.deb" } },
-{ "Must": { "AddDsc": "rustc_1.48.0+dfsg1-2co1.dsc" } },
+{ "Must": { "AddDsc": ["rustc_1.48.0+dfsg1-2co1.dsc"] } },
 { "Must": { "RemoveAptly": "Pall libstd-rust-dev-wasm32 1.48.0+dfsg1-2 467ca0824312dc4" } },
-{ "Must": { "RemoveAptly": "Pamd64 libstd-rust-dev 1.48.0+dfsg1-2 bc4cbe4609a95406" } }, 
+{ "Must": { "RemoveAptly": "Pamd64 libstd-rust-dev 1.48.0+dfsg1-2 bc4cbe4609a95406" } },
 { "Must": { "RemoveAptly": "Parm64 libstd-rust-1.48 1.48.0+dfsg1-2 7400092db566a981" } },
 { "Must": { "RemoveAptly": "Parmhf libstd-rust-dev 1.48.0+dfsg1-2 9f25b97e7fb1b304" } },
 { "Must": { "RemoveAptly": "Parm64 rustc 1.48.0+dfsg1-2 8e2029a47cdca5d1" } },
@@ -36,6 +36,6 @@
 { "Must": { "RemoveAptly": "Pall rust-doc 1.48.0+dfsg1-2 21341ad8ea22dc04" } },
 { "Must": { "RemoveAptly": "Parmhf libstd-rust-1.48 1.48.0+dfsg1-2 7d5dcd8a5f4addee" } },
 { "Must": { "RemoveAptly": "Pamd64 rustc 1.48.0+dfsg1-2 87415bdc9ef60793" } },
-{ "Must": { "RemoveAptly": "Pamd64 rustc 1.48.0+dfsg1-2+fake 87415bdc9ef6dead" } },
+{ "Must": { "RemoveAptly": "Pamd64 rustc 1.48.0+dfsg1-1+fake 87415bdc9ef6dead" } },
 { "Must": { "RemoveAptly": "Psource rustc 1.48.0+dfsg1-2 1874ac1ecae98276" } }
 ]

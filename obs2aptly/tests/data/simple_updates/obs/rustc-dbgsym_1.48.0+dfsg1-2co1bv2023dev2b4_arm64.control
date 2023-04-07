@@ -1,0 +1,12 @@
+Package: rustc-dbgsym
+Source: rustc
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Auto-Built-Package: debug-symbols
+Architecture: arm64
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Installed-Size: 14589
+Depends: rustc (= 1.48.0+dfsg1-2co1bv2023dev2b4)
+Section: debug
+Priority: optional
+Description: debug symbols for rustc
+Build-Ids: 13a60959e7ce22938f3747969746e69d07233e6a 36e006a00f4ce5fad9b0ddec659c6324c393128c

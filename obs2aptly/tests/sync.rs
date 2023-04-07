@@ -1,12 +1,16 @@
 use std::{
-    fs::File,
+    ffi::OsStr,
+    fs::{self, File},
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
-use anyhow::{bail, Result};
 use aptly_rest::AptlyRest;
 use aptly_rest_mock::AptlyRestMock;
+use color_eyre::{eyre::eyre, Result};
+use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use obs2aptly::{AptlyContent, ObsContent, SyncAction};
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 
 fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf {
@@ -30,7 +34,7 @@ impl ExpectedAction {
                 a.strip_prefix(path_prefix).unwrap() == e
             }
             (SyncAction::AddDsc(e), SyncAction::AddDsc(a)) => {
-                a.strip_prefix(path_prefix).unwrap() == e
+                a[0].strip_prefix(path_prefix).unwrap() == e[0]
             }
             (SyncAction::RemoveAptly(e), SyncAction::RemoveAptly(a)) => e == a,
             _ => false,
@@ -73,34 +77,62 @@ fn compare_actions(
             expected.swap_remove(i);
         } else {
             eprintln!("- Unexpected action: {:?}", action);
-            r = Err(anyhow::anyhow!("Actions didn't match"));
+            r = Err(eyre!("Actions didn't match"));
         }
     }
 
     for action in expected {
         eprintln!("- Missing action: {:?}", action);
-        r = Err(anyhow::anyhow!("Actions didn't match"));
+        r = Err(eyre!("Actions didn't match"));
     }
 
     r
 }
 
+static TRACING_INIT: OnceCell<()> = OnceCell::new();
+
 async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
+    TRACING_INIT.get_or_init(|| {
+        tracing_subscriber::fmt::init();
+    });
     let mock = AptlyRestMock::start().await;
     mock.load_data(&data_path(&path, "aptly.json"));
 
     let aptly = AptlyRest::new(mock.url());
 
-    let aptly_contents = AptlyContent::new_from_aptly(&aptly, repo).await.unwrap();
+    let aptly_contents = AptlyContent::new_from_aptly(&aptly, repo.to_owned())
+        .await
+        .unwrap();
 
     let obs_path = data_path(&path, "obs");
-    let obs_content = ObsContent::new_from_path(obs_path.clone()).await.unwrap();
+    let obs_temp_dir = tempfile::tempdir().unwrap();
+
+    for entry in std::fs::read_dir(&obs_path).unwrap() {
+        let entry = entry.unwrap();
+        let dest = obs_temp_dir.path().join(entry.file_name());
+        if dest.extension() == Some(OsStr::new("control")) {
+            let control_file = File::open(entry.path()).unwrap();
+            let mut control_rd = BufReader::new(control_file);
+            let control = ControlFile::parse_reader(&mut control_rd).unwrap();
+            let deb = DebBuilder::new(control);
+
+            let dest = dest.with_extension("deb");
+            let mut dest_file = File::create(dest).unwrap();
+            deb.write(&mut dest_file).unwrap();
+        } else {
+            fs::copy(entry.path(), obs_temp_dir.path().join(entry.file_name())).unwrap();
+        }
+    }
+
+    let obs_content = ObsContent::new_from_path(obs_temp_dir.path().to_owned())
+        .await
+        .unwrap();
 
     let actions = obs2aptly::sync(aptly, obs_content, aptly_contents)
         .await
         .unwrap();
     let expected = load_expected_actions(&data_path(&path, "expected.json"));
-    compare_actions(actions.actions(), expected, &obs_path).unwrap();
+    compare_actions(actions.actions(), expected, obs_temp_dir.path()).unwrap();
 }
 
 #[tokio::test]

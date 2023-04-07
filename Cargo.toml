@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "obs2aptly",
+  "aptlyctl",
   "aptly-rest",
   "aptly-rest-mock"
 ]

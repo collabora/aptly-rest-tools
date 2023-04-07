@@ -1,0 +1,27 @@
+Package: libstd-rust-dev
+Source: rustc
+Version: 1.48.0+dfsg1-2co1bv2023dev2b4
+Architecture: arm64
+Maintainer: Debian Rust Maintainers <pkg-rust-maintainers@alioth-lists.debian.net>
+Installed-Size: 131350
+Depends: libstd-rust-1.48 (= 1.48.0+dfsg1-2co1bv2023dev2b4)
+Section: libdevel
+Priority: optional
+Multi-Arch: same
+Homepage: http://www.rust-lang.org/
+Description: Rust standard libraries - development files
+ Rust is a curly-brace, block-structured expression language.  It
+ visually resembles the C language family, but differs significantly
+ in syntactic and semantic details.  Its design is oriented toward
+ concerns of "programming in the large", that is, of creating and
+ maintaining boundaries - both abstract and operational - that
+ preserve large-system integrity, availability and concurrency.
+ .
+ It supports a mixture of imperative procedural, concurrent actor,
+ object-oriented and pure functional styles.  Rust also supports
+ generic programming and meta-programming, in both static and dynamic
+ styles.
+ .
+ This package contains development files for the standard Rust libraries,
+ needed to compile Rust programs. It may also be installed on a system
+ of another host architecture, for cross-compiling to this architecture.

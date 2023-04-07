@@ -1,8 +1,11 @@
 use api::{
+    files::FilesApi,
     packages::PackagesApi,
+    publish::{PublishApi, PublishedRepo},
     repos::{Repo, RepoApi},
+    snapshots::{Snapshot, SnapshotApi},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
@@ -47,9 +50,20 @@ impl AptlyRest {
         Ok(v.version)
     }
 
+    pub async fn db_cleanup(&self) -> Result<(), AptlyRestError> {
+        let url = self.url(&["api", "db", "cleanup"]);
+        self.post(url).await?;
+        Ok(())
+    }
+
     pub async fn repos(&self) -> Result<Vec<Repo>, AptlyRestError> {
         let url = self.url(&["api", "repos"]);
         self.get(url).await
+    }
+
+    pub async fn create_repo(&self, repo: &Repo) -> Result<Repo, AptlyRestError> {
+        let url = self.url(&["api", "repos"]);
+        self.post_body(url, repo).await
     }
 
     pub fn repo<S: Into<String>>(&self, name: S) -> RepoApi {
@@ -59,8 +73,36 @@ impl AptlyRest {
         }
     }
 
+    pub fn files(&self) -> FilesApi {
+        FilesApi { aptly: self }
+    }
+
     pub fn packages(&self) -> PackagesApi {
         PackagesApi { aptly: self }
+    }
+
+    pub fn publish_prefix<S: Into<String>>(&self, prefix: S) -> PublishApi {
+        PublishApi {
+            aptly: self,
+            prefix: prefix.into(),
+        }
+    }
+
+    pub async fn published(&self) -> Result<Vec<PublishedRepo>, AptlyRestError> {
+        let url = self.url(&["api", "publish"]);
+        self.get(url).await
+    }
+
+    pub fn snapshot<S: Into<String>>(&self, name: S) -> SnapshotApi {
+        SnapshotApi {
+            aptly: self,
+            name: name.into(),
+        }
+    }
+
+    pub async fn snapshots(&self) -> Result<Vec<Snapshot>, AptlyRestError> {
+        let url = self.url(&["api", "shapshots"]);
+        self.get(url).await
     }
 
     fn url<I>(&self, parts: I) -> Url
@@ -77,7 +119,49 @@ impl AptlyRest {
     where
         T: serde::de::DeserializeOwned,
     {
-        let r = self.client.get(url).send().await?.error_for_status()?;
-        Ok(r.json().await?)
+        self.json_request(self.client.get(url)).await
+    }
+
+    async fn post<'a, T>(&self, url: Url) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.json_request(self.client.post(url)).await
+    }
+
+    async fn post_body<'a, S: Serialize + ?Sized, T>(
+        &self,
+        url: Url,
+        body: &S,
+    ) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.json_request(self.client.post(url).json(body)).await
+    }
+
+    async fn put_body<'a, S: Serialize + ?Sized, T>(
+        &self,
+        url: Url,
+        body: &S,
+    ) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.json_request(self.client.put(url).json(body)).await
+    }
+
+    async fn send_request(
+        &self,
+        req: reqwest::RequestBuilder,
+    ) -> Result<reqwest::Response, AptlyRestError> {
+        Ok(req.send().await?.error_for_status()?)
+    }
+
+    async fn json_request<T>(&self, req: reqwest::RequestBuilder) -> Result<T, AptlyRestError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        Ok(self.send_request(req).await?.json().await?)
     }
 }
