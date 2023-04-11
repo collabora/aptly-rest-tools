@@ -4,6 +4,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 use crate::AptlyRestError;
 
+#[derive(Default)]
 pub struct UploadFiles {
     parts: Vec<reqwest::multipart::Part>,
 }
