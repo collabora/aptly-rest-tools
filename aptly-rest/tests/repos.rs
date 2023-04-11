@@ -46,8 +46,7 @@ async fn repo_packages_list() {
     for p in packages {
         assert!(repo_packages
             .iter()
-            .find(|r| p == AptlyKey::from_str(r).unwrap())
-            .is_some())
+            .any(|r| p == AptlyKey::from_str(r).unwrap()))
     }
 }
 

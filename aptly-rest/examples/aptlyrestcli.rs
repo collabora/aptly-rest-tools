@@ -91,15 +91,13 @@ async fn repo(name: String, aptly: AptlyRest, action: RepoAction) -> Result<()> 
                         println!("{p}");
                     }
                 }
+            } else if p.detailed {
+                for p in packages.detailed().await? {
+                    println!("{p:#?}");
+                }
             } else {
-                if p.detailed {
-                    for p in packages.detailed().await? {
-                        println!("{p:#?}");
-                    }
-                } else {
-                    for p in packages.list().await? {
-                        println!("{p}");
-                    }
+                for p in packages.list().await? {
+                    println!("{p}");
                 }
             }
         }

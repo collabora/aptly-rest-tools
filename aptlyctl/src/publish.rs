@@ -13,11 +13,11 @@ enum SourceKind {
     Snapshot,
 }
 
-impl SourceKind {
-    fn to_aptly(&self) -> publish::SourceKind {
-        match *self {
-            Self::Repo => publish::SourceKind::Local,
-            Self::Snapshot => publish::SourceKind::Snapshot,
+impl From<SourceKind> for publish::SourceKind {
+    fn from(from: SourceKind) -> Self {
+        match from {
+            SourceKind::Repo => Self::Local,
+            SourceKind::Snapshot => Self::Snapshot,
         }
     }
 }
@@ -112,7 +112,7 @@ impl PublishCommand {
                 let repo = aptly
                     .publish_prefix(&args.prefix)
                     .publish(
-                        args.kind.to_aptly(),
+                        args.kind.into(),
                         &args.sources,
                         &publish::PublishOptions {
                             architectures: args.architectures.clone(),

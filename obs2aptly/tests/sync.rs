@@ -72,7 +72,7 @@ fn compare_actions(
         let found = expected
             .iter()
             .enumerate()
-            .find(|(_, e)| e.matches_action(&action, path_prefix));
+            .find(|(_, e)| e.matches_action(action, path_prefix));
         if let Some((i, _)) = found {
             expected.swap_remove(i);
         } else {
