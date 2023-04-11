@@ -3,7 +3,9 @@ use std::{fmt::Display, str::FromStr};
 use debian_packaging::package_version::PackageVersion;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-#[derive(Debug, Clone, PartialEq, Eq, Ord, Hash, DeserializeFromStr, SerializeDisplay)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, DeserializeFromStr, SerializeDisplay,
+)]
 pub struct AptlyKey {
     package: String,
     version: PackageVersion,
@@ -18,25 +20,6 @@ impl Display for AptlyKey {
             "P{} {} {} {}",
             self.arch, self.package, self.version, self.hash
         )
-    }
-}
-
-// TODO check if ordering is a) need b) makes sense
-impl PartialOrd for AptlyKey {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.package.partial_cmp(&other.package) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.version.partial_cmp(&other.version) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.arch.partial_cmp(&other.arch) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.hash.partial_cmp(&other.hash)
     }
 }
 
