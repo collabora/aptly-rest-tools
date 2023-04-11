@@ -108,7 +108,7 @@ async fn scanner() {
         "systemd_247.3-6+apertis4bv2023dev2b6_arm64.changes",
     ] {
         assert!(
-            found.iter().find(|s| s.as_str() == item).is_some(),
+            found.iter().any(|s| s.as_str() == item),
             "{} not in {:#?}",
             item,
             found

@@ -149,6 +149,7 @@ impl AptlyContent {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 struct ObsDeb {
     package: PackageName,
@@ -230,6 +231,7 @@ impl ObsPackage {
     }
 }
 
+#[allow(dead_code)]
 struct ObsDsc {
     package: PackageName,
     dsc: Dsc,
@@ -280,7 +282,7 @@ impl ObsContent {
         let a: AptlyKey = (&dsc).try_into()?;
         let package: PackageName = a.package().into();
         let dsc = ObsDsc {
-            package: package.clone(),
+            package,
             dsc,
             aptly_hash: a.hash().to_string(),
         };
@@ -302,7 +304,7 @@ impl ObsContent {
             let package_name: PackageName = info.package.into();
             let deb = ObsDeb {
                 package: package_name.clone(),
-                path: changes.path().clone().with_file_name(&f.name),
+                path: changes.path().with_file_name(&f.name),
                 source: changes.source()?.to_string(),
                 source_version: changes.version()?,
                 changes_version: info.version,
@@ -433,7 +435,7 @@ impl Syncer for BinaryInDepSyncer {
                     source: &d.source,
                     version: &d.source_version,
                 };
-                acc.entry(t).or_default().push(&d);
+                acc.entry(t).or_default().push(d);
                 acc
             });
 
@@ -494,7 +496,7 @@ impl Syncer for SourceSyncer {
     #[tracing::instrument(skip_all)]
     async fn add(&self, obs: &Self::Obs, actions: &mut SyncActions) -> Result<()> {
         for source in &obs.sources {
-            actions.add_dsc(&source)?;
+            actions.add_dsc(source)?;
         }
 
         Ok(())
@@ -531,7 +533,7 @@ impl Syncer for SourceSyncer {
         if d.aptly_hash != a.hash() {
             // TODO make sure version is upgraded
             actions.remove_aptly(a.clone());
-            actions.add_dsc(&d)?;
+            actions.add_dsc(d)?;
         }
 
         Ok(())
@@ -539,7 +541,6 @@ impl Syncer for SourceSyncer {
 }
 
 // Calculate operation need to sync obs into aptly
-#[tracing::instrument(skip_all)]
 async fn sync_packages<S, O>(
     obs_iter: &mut dyn Iterator<Item = (&PackageName, &O)>,
     aptly_iter: &mut dyn Iterator<Item = (&PackageName, &AptlyPackage)>,
@@ -569,23 +570,27 @@ where
             (None, None) => break,
         };
 
-        if o < a {
-            // Package in obs but not in aptly
-            debug!("+ {o} - {a}");
-            syncer.add(o_v, actions).await?;
-            obs_iter.next();
-        } else if o == a {
-            debug!("* {o} - {a}");
-            syncer.sync(o_v, a_v, actions).await?;
-            obs_iter.next();
-            aptly_iter.next();
-        } else {
-            // Package in aptly but not in obs (anymore)
-            info!("== No longer in OBS: {a} ==");
-            for key in a_v.keys().cloned() {
-                actions.remove_aptly(key)
+        match o.cmp(a) {
+            std::cmp::Ordering::Less => {
+                // Package in obs but not in aptly
+                debug!("+ {o} - {a}");
+                syncer.add(o_v, actions).await?;
+                obs_iter.next();
             }
-            aptly_iter.next();
+            std::cmp::Ordering::Equal => {
+                debug!("* {o} - {a}");
+                syncer.sync(o_v, a_v, actions).await?;
+                obs_iter.next();
+                aptly_iter.next();
+            }
+            std::cmp::Ordering::Greater => {
+                // Package in aptly but not in obs (anymore)
+                info!("== No longer in OBS: {a} ==");
+                for key in a_v.keys().cloned() {
+                    actions.remove_aptly(key)
+                }
+                aptly_iter.next();
+            }
         }
     }
     Ok(())
