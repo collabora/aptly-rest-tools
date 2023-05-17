@@ -160,6 +160,7 @@ pub struct Binary {
     package: String,
     version: String,
     architecture: String,
+    filename: String,
     #[serde_as(as = "DisplayFromStr")]
     key: AptlyKey,
     #[serde(rename = "SHA256")]
@@ -179,6 +180,10 @@ impl Binary {
 
     pub fn architecture(&self) -> &str {
         self.architecture.as_ref()
+    }
+
+    pub fn filename(&self) -> &str {
+        self.filename.as_ref()
     }
 
     pub fn key(&self) -> &AptlyKey {
