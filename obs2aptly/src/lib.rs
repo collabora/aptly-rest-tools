@@ -18,7 +18,7 @@ use tokio::fs::File;
 use tracing::{debug, error, info, span, warn, Level};
 
 use aptly_rest::{
-    api::files::UploadFiles,
+    api::{files::UploadFiles, packages},
     changes::Changes,
     dsc::Dsc,
     key::AptlyKey,
@@ -153,6 +153,7 @@ impl AptlyContent {
 #[derive(Debug)]
 struct ObsDeb {
     package: PackageName,
+    architecture: String,
     path: PathBuf,
     source: String,
     source_version: PackageVersion,
@@ -304,6 +305,7 @@ impl ObsContent {
             let package_name: PackageName = info.package.into();
             let deb = ObsDeb {
                 package: package_name.clone(),
+                architecture: info.architecture.to_owned(),
                 path: changes.path().with_file_name(&f.name),
                 source: changes.source()?.to_string(),
                 source_version: changes.version()?,
@@ -388,7 +390,12 @@ impl Syncer for BinaryInDepSyncer {
         // Only add the newest arch all package; Potential future update could be to add one deb
         // for each *version*
         let obs_newest = obs.newest()?;
-        actions.add_deb(obs_newest);
+        actions.add_deb_with_options(
+            obs_newest,
+            &AddDebOptions {
+                match_existing: MatchPoolPackageBy::KeyOrFilename,
+            },
+        );
         Ok(())
     }
 
@@ -461,7 +468,12 @@ impl Syncer for BinaryInDepSyncer {
             // If version is newer then everything in aptly add the package
             // TODO actual package version
             if aptly.keys().all(|a| a.version() < version) {
-                actions.add_deb(v[0]);
+                actions.add_deb_with_options(
+                    v[0],
+                    &AddDebOptions {
+                        match_existing: MatchPoolPackageBy::KeyOrFilename,
+                    },
+                );
                 continue;
             }
 
@@ -596,11 +608,81 @@ where
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum MatchPoolPackageBy {
+    KeyOnly,
+    KeyOrFilename,
+}
+
+impl Default for MatchPoolPackageBy {
+    fn default() -> Self {
+        MatchPoolPackageBy::KeyOnly
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SyncAction {
-    AddDeb(PathBuf),
-    AddDsc(Vec<PathBuf>),
+    AddDeb {
+        package: String,
+        aptly_hash: String,
+        path: PathBuf,
+        match_existing: MatchPoolPackageBy,
+    },
+    AddDsc {
+        package: String,
+        aptly_hash: String,
+        dsc_path: PathBuf,
+        referenced_paths: Vec<PathBuf>,
+    },
+    AddPoolPackage(AptlyKey),
     RemoveAptly(AptlyKey),
+}
+
+#[derive(Default)]
+struct PoolPackagesByName(HashMap<String, Vec<packages::Package>>);
+
+impl PoolPackagesByName {
+    #[tracing::instrument(skip(self))]
+    fn find_matching_package(
+        &self,
+        package: &str,
+        aptly_hash: &str,
+        path: &Path,
+        match_existing: MatchPoolPackageBy,
+    ) -> Result<Option<AptlyKey>> {
+        let Some(packages) = self.0.get(package) else {
+            return Ok(None);
+        };
+
+        if let Some(existing_package_with_hash) =
+            packages.iter().find(|m| m.key().hash() == aptly_hash)
+        {
+            return Ok(Some(existing_package_with_hash.key().clone()));
+        }
+
+        let filename = path.file_name().unwrap();
+        if let Some(existing_package_with_filename) = packages.iter().find(|m| match *m {
+            packages::Package::Source(source) => source
+                .sha256_files()
+                .iter()
+                .any(|f| f.filename().ends_with(".dsc") && f.filename() == filename),
+            packages::Package::Binary(binary) => binary.filename() == filename,
+        }) {
+            ensure!(
+                match_existing == MatchPoolPackageBy::KeyOrFilename,
+                "Package already exists with different key '{}'",
+                existing_package_with_filename.key(),
+            );
+            return Ok(Some(existing_package_with_filename.key().clone()));
+        }
+
+        Ok(None)
+    }
+}
+
+#[derive(Default)]
+pub struct AddDebOptions {
+    pub match_existing: MatchPoolPackageBy,
 }
 
 #[derive(Debug)]
@@ -620,8 +702,17 @@ impl SyncActions {
     }
 
     fn add_deb(&mut self, d: &ObsDeb) {
+        self.add_deb_with_options(d, &Default::default());
+    }
+
+    fn add_deb_with_options(&mut self, d: &ObsDeb, options: &AddDebOptions) {
         info!("Adding deb: {}", d.path.display());
-        self.actions.push(SyncAction::AddDeb(d.path.clone()));
+        self.actions.push(SyncAction::AddDeb {
+            package: d.package.name().to_owned(),
+            aptly_hash: d.aptly_hash.clone(),
+            path: d.path.clone(),
+            match_existing: options.match_existing,
+        });
     }
 
     #[tracing::instrument(skip_all)]
@@ -634,19 +725,22 @@ impl SyncActions {
             _ => bail!("Invalid .dsc path '{}'", dsc_path.display()),
         };
 
-        let all_paths = std::iter::once(dsc_path.to_owned())
-            .chain(
-                d.dsc
-                    .files()?
-                    .iter()
-                    // The .dsc references itself, so make sure we remove that
-                    // to avoid duplicates.
-                    .filter(|f| f.name.as_str() != dsc_filename)
-                    .map(|f| dsc_parent.join(&f.name)),
-            )
+        let referenced_paths = d
+            .dsc
+            .files()?
+            .iter()
+            // The .dsc references itself, so make sure we remove that
+            // to avoid duplicates.
+            .filter(|f| f.name.as_str() != dsc_filename)
+            .map(|f| dsc_parent.join(&f.name))
             .collect();
 
-        self.actions.push(SyncAction::AddDsc(all_paths));
+        self.actions.push(SyncAction::AddDsc {
+            package: d.package.name().to_owned(),
+            aptly_hash: d.aptly_hash.clone(),
+            dsc_path: dsc_path.to_owned(),
+            referenced_paths,
+        });
         Ok(())
     }
 
@@ -657,6 +751,85 @@ impl SyncActions {
 
     pub fn actions(&self) -> &[SyncAction] {
         &self.actions
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn query_pool_packages(&self) -> Result<PoolPackagesByName> {
+        // Querying for all the packages results in a URL that is far too long
+        // (over the 65k limit set by reqwest), so split it into 1k packages per
+        // query.
+        const CHUNK_SIZE: usize = 1000;
+
+        let query_parts: Vec<_> = self
+            .actions
+            .iter()
+            .filter_map::<&str, _>(|a| match a {
+                SyncAction::AddDeb { package, .. } => Some(package),
+                SyncAction::AddDsc { package, .. } => Some(package),
+                _ => None,
+            })
+            .collect();
+
+        let mut packages: Vec<packages::Package> = vec![];
+        for chunk in query_parts.chunks(CHUNK_SIZE) {
+            let query = chunk.to_vec().join("|");
+            packages.extend(self.aptly.packages().query(query, false).detailed().await?);
+        }
+
+        let mut result: PoolPackagesByName = Default::default();
+        for package in packages {
+            result
+                .0
+                .entry(package.package().to_owned())
+                .or_default()
+                .push(package);
+        }
+
+        Ok(result)
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn reuse_existing_pool_packages(&mut self) -> Result<()> {
+        let pool_packages = self.query_pool_packages().await?;
+
+        for action in &mut self.actions {
+            match action {
+                SyncAction::AddDeb {
+                    package,
+                    aptly_hash,
+                    path,
+                    match_existing,
+                } => {
+                    if let Some(key) = pool_packages.find_matching_package(
+                        package,
+                        aptly_hash,
+                        path,
+                        *match_existing,
+                    )? {
+                        info!("Using package '{key}' for '{}'", path.display());
+                        *action = SyncAction::AddPoolPackage(key);
+                    }
+                }
+                SyncAction::AddDsc {
+                    package,
+                    aptly_hash,
+                    dsc_path,
+                    ..
+                } => {
+                    if let Some(key) = pool_packages.find_matching_package(
+                        package,
+                        aptly_hash,
+                        dsc_path,
+                        MatchPoolPackageBy::KeyOnly,
+                    )? {
+                        info!("Using package '{key}' for '{}'", dsc_path.display());
+                        *action = SyncAction::AddPoolPackage(key);
+                    }
+                }
+                _ => (),
+            }
+        }
+        Ok(())
     }
 
     #[tracing::instrument(skip_all)]
@@ -693,20 +866,29 @@ impl SyncActions {
             }
         }
 
-        let mut uploaded_files = 0;
+        let mut uploaded_packages = 0;
         let mut to_remove = HashSet::<AptlyKey>::new();
+        let mut to_reuse = HashSet::<AptlyKey>::new();
 
         for action in &self.actions {
             match action {
-                SyncAction::AddDeb(path) => {
+                SyncAction::AddDeb { path, .. } => {
                     self.upload_file(DIR.to_owned(), path).await?;
-                    uploaded_files += 1;
+                    uploaded_packages += 1;
                 }
-                SyncAction::AddDsc(paths) => {
-                    for path in paths {
+                SyncAction::AddDsc {
+                    dsc_path,
+                    referenced_paths,
+                    ..
+                } => {
+                    for path in std::iter::once(dsc_path).chain(referenced_paths) {
                         self.upload_file(DIR.to_owned(), path).await?;
                     }
-                    uploaded_files += 1;
+
+                    uploaded_packages += 1;
+                }
+                SyncAction::AddPoolPackage(key) => {
+                    to_reuse.insert(key.clone());
                 }
                 SyncAction::RemoveAptly(key) => {
                     to_remove.insert(key.clone());
@@ -714,8 +896,25 @@ impl SyncActions {
             }
         }
 
-        if uploaded_files != 0 {
-            info!("Adding {} file(s) to repository...", uploaded_files);
+        if !to_reuse.is_empty() {
+            info!(
+                "Adding {} package(s) from pool to repository...",
+                to_reuse.len()
+            );
+
+            self.aptly
+                .repo(&self.repo)
+                .packages()
+                .add(&to_reuse)
+                .await?;
+            info!("Complete.");
+        }
+
+        if uploaded_packages != 0 {
+            info!(
+                "Adding {} newly uploaded package(s) to repository...",
+                uploaded_packages
+            );
 
             let response = self
                 .aptly
@@ -738,11 +937,11 @@ impl SyncActions {
                 bail!("Upload failed");
             }
 
-            info!("Upload complete.");
+            info!("Complete.");
         }
 
         if !to_remove.is_empty() {
-            info!("Deleting {} package(s) from repository...", uploaded_files);
+            info!("Deleting {} package(s) from repository...", to_remove.len());
 
             self.aptly
                 .repo(&self.repo)
@@ -811,6 +1010,10 @@ pub async fn sync(
         &mut actions,
     )
     .await?;
+
+    info!(" == Looking for existing packages in the pool ==");
+    actions.reuse_existing_pool_packages().await?;
+
     info!(" == Actions calculated == ");
 
     Ok(actions)
