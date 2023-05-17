@@ -54,6 +54,12 @@ impl AptlyRestMock {
             .await;
 
         Mock::given(method("GET"))
+            .and(path("api/packages"))
+            .respond_with(api::packages::PackagesResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("GET"))
             .and(path("api/repos"))
             .respond_with(api::repos::ReposResponder::new(server.clone()))
             .mount(&server.server)
