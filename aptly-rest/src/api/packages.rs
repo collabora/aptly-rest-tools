@@ -1,5 +1,5 @@
 use reqwest::Url;
-use serde::Deserialize;
+use serde::{de, Deserialize, Deserializer};
 use serde_with::{serde_as, DisplayFromStr, NoneAsEmptyString};
 
 use crate::{key::AptlyKey, AptlyRestError};
@@ -116,6 +116,54 @@ impl Repo {
     }
 }
 
+#[derive(Deserialize, Clone, Debug)]
+pub struct File {
+    checksum: String,
+    size: usize,
+    filename: String,
+}
+
+impl File {
+    pub fn checksum(&self) -> &str {
+        &self.checksum
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    pub fn filename(&self) -> &str {
+        &self.filename
+    }
+}
+
+fn deserialize_files<'de, D>(deserializer: D) -> Result<Vec<File>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    String::deserialize(deserializer)?
+        .lines()
+        .map(|line| {
+            let fields: Vec<_> = line.split_ascii_whitespace().collect();
+            if fields.len() != 3 {
+                return Err(de::Error::custom("invalid number of fields"));
+            }
+
+            let checksum = fields[0].to_owned();
+            let size = fields[1]
+                .parse()
+                .map_err(|_| de::Error::custom("invalid size"))?;
+            let filename = fields[2].to_owned();
+
+            Ok(File {
+                checksum,
+                size,
+                filename,
+            })
+        })
+        .collect()
+}
+
 #[serde_as]
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "PascalCase")]
@@ -125,8 +173,8 @@ pub struct Source {
     #[serde_as(as = "DisplayFromStr")]
     key: AptlyKey,
     architecture: String,
-    #[serde(rename = "Checksums-Sha256")]
-    sha256: String,
+    #[serde(deserialize_with = "deserialize_files", rename = "Checksums-Sha256")]
+    sha256_files: Vec<File>,
     #[serde(flatten)]
     _unparsed: serde_json::Value,
 }
@@ -148,8 +196,8 @@ impl Source {
         self.architecture.as_ref()
     }
 
-    pub fn sha256(&self) -> &str {
-        self.sha256.as_ref()
+    pub fn sha256_files(&self) -> &[File] {
+        &self.sha256_files
     }
 }
 
@@ -228,13 +276,6 @@ impl Package {
         match self {
             Package::Binary(b) => &b.version,
             Package::Source(s) => &s.version,
-        }
-    }
-
-    pub fn sha256(&self) -> &str {
-        match self {
-            Package::Binary(b) => &b.sha256,
-            Package::Source(s) => &s.sha256,
         }
     }
 
