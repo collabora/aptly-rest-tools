@@ -93,7 +93,7 @@ fn do_walk_inner(
     tx: Sender<Result<Found, ScannerError>>,
     s: Arc<Semaphore>,
 ) -> Result<(), ScannerError> {
-    let dir = walkdir::WalkDir::new(&path);
+    let dir = walkdir::WalkDir::new(path);
     for entry in dir {
         let entry = entry?;
         if let Some(name) = entry.file_name().to_str() {
