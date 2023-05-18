@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aptly_rest::AptlyRest;
+use aptly_rest::{key::AptlyKey, AptlyRest};
 use aptly_rest_mock::AptlyRestMock;
 use color_eyre::{eyre::eyre, Result};
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
@@ -22,21 +22,32 @@ fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf 
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
+enum ExpectedSyncAction {
+    AddDeb(PathBuf),
+    AddDsc(Vec<PathBuf>),
+    RemoveAptly(AptlyKey),
+}
+
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 enum ExpectedAction {
-    Must(SyncAction),
-    OneOf(Vec<SyncAction>),
+    Must(ExpectedSyncAction),
+    OneOf(Vec<ExpectedSyncAction>),
 }
 
 impl ExpectedAction {
-    fn match_action(expected: &SyncAction, action: &SyncAction, path_prefix: &Path) -> bool {
+    fn match_action(
+        expected: &ExpectedSyncAction,
+        action: &SyncAction,
+        path_prefix: &Path,
+    ) -> bool {
         match (expected, action) {
-            (SyncAction::AddDeb(e), SyncAction::AddDeb(a)) => {
-                a.strip_prefix(path_prefix).unwrap() == e
+            (ExpectedSyncAction::AddDeb(e), SyncAction::AddDeb { path, .. }) => {
+                path.strip_prefix(path_prefix).unwrap() == e
             }
-            (SyncAction::AddDsc(e), SyncAction::AddDsc(a)) => {
-                a[0].strip_prefix(path_prefix).unwrap() == e[0]
+            (ExpectedSyncAction::AddDsc(e), SyncAction::AddDsc { dsc_path, .. }) => {
+                dsc_path.strip_prefix(path_prefix).unwrap() == e[0]
             }
-            (SyncAction::RemoveAptly(e), SyncAction::RemoveAptly(a)) => e == a,
+            (ExpectedSyncAction::RemoveAptly(e), SyncAction::RemoveAptly(a)) => e == a,
             _ => false,
         }
     }

@@ -128,6 +128,27 @@ impl RepoApiPackages<'_> {
         }
     }
 
+    pub async fn add<'r, R>(&self, keys: R) -> Result<Repo, AptlyRestError>
+    where
+        R: IntoIterator<Item = &'r AptlyKey>,
+    {
+        #[derive(Debug, Clone, Serialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct AddRequest<'r> {
+            package_refs: Vec<&'r AptlyKey>,
+        }
+
+        self.repo
+            .aptly
+            .post_body(
+                self.base_url(),
+                &AddRequest {
+                    package_refs: keys.into_iter().collect(),
+                },
+            )
+            .await
+    }
+
     pub async fn delete<'r, R>(&self, keys: R) -> Result<(), AptlyRestError>
     where
         R: IntoIterator<Item = &'r AptlyKey>,
