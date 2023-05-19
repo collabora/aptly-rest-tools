@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use http_types::StatusCode;
+use mirror::{Mirror, Mirrors};
 use pool::Package;
 use repo::Repositories;
 use serde::Deserialize;
@@ -16,6 +18,7 @@ use wiremock::ResponseTemplate;
 use wiremock::{Mock, MockServer};
 
 mod api;
+mod mirror;
 mod pool;
 mod repo;
 use pool::Pool;
@@ -25,6 +28,7 @@ pub const APTLY_VERSION: &str = "1.4.0+187+g15f2c97d";
 struct Inner {
     pool: Pool,
     repositories: Repositories,
+    mirrors: Mirrors,
 }
 
 #[derive(Clone)]
@@ -38,6 +42,7 @@ impl AptlyRestMock {
         let inner = Arc::new(RwLock::new(Inner {
             pool: Pool::new(),
             repositories: Repositories::new(),
+            mirrors: Mirrors::new(),
         }));
         let server = AptlyRestMock {
             server: Arc::new(MockServer::start().await),
@@ -71,13 +76,19 @@ impl AptlyRestMock {
             .mount(&server.server)
             .await;
 
+        Mock::given(method("GET"))
+            .and(path("api/mirrors"))
+            .respond_with(api::mirrors::MirrorsResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
         server
     }
 
     /// Load mock data at a given path
     pub fn load_data(&self, path: &Path) {
         let f = File::open(path).expect("Couldn't open data");
-        let data: Data = serde_json::from_reader(f).expect("Couldn't parse data");
+        let mut data: Data = serde_json::from_reader(f).expect("Couldn't parse data");
         let mut inner = self.inner.write().unwrap();
 
         for p in data.packages {
@@ -91,6 +102,11 @@ impl AptlyRestMock {
                 r.default_distribution,
                 r.default_component,
             );
+        }
+        if let Some(mut mirrors) = data.mirrors {
+            for m in mirrors.drain(..) {
+                inner.mirrors.add(m.into());
+            }
         }
         drop(inner);
 
@@ -128,6 +144,11 @@ impl AptlyRestMock {
         inner.repositories.clone()
     }
 
+    pub fn mirrors(&self) -> Mirrors {
+        let inner = self.inner.read().unwrap();
+        inner.mirrors.clone()
+    }
+
     pub fn package(&self, key: &str) -> Option<Package> {
         let inner = self.inner.read().unwrap();
         inner.pool.package(key).cloned()
@@ -143,6 +164,30 @@ struct RepoData {
     default_component: String,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct MirrorData {
+    #[serde(rename = "UUID")]
+    uuid: String,
+    name: String,
+    archive_root: String,
+    distribution: String,
+    components: Vec<String>,
+    architectures: Vec<String>,
+    meta: HashMap<String, String>,
+    last_download_date: String,
+    filter: String,
+    status: u32,
+    #[serde(rename = "WorkerPID")]
+    worker_pid: u32,
+    filter_with_deps: bool,
+    skip_component_check: bool,
+    skip_architecture_check: bool,
+    download_sources: bool,
+    download_udebs: bool,
+    download_installer: bool,
+}
+
 #[derive(Deserialize, Debug)]
 struct ContentData {
     repository: String,
@@ -152,6 +197,7 @@ struct ContentData {
 #[derive(Deserialize, Debug)]
 struct Data {
     repositories: Vec<RepoData>,
+    mirrors: Option<Vec<MirrorData>>,
     contents: Vec<ContentData>,
     packages: Vec<serde_json::Value>,
 }

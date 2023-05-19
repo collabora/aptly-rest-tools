@@ -1,5 +1,6 @@
 use api::{
     files::FilesApi,
+    mirrors::Mirror,
     packages::PackagesApi,
     publish::{PublishApi, PublishedRepo},
     repos::{Repo, RepoApi},
@@ -71,6 +72,11 @@ impl AptlyRest {
             aptly: self,
             name: name.into(),
         }
+    }
+
+    pub async fn mirrors(&self) -> Result<Vec<Mirror>, AptlyRestError> {
+        let url = self.url(&["api", "mirrors"]);
+        self.get(url).await
     }
 
     pub fn files(&self) -> FilesApi {

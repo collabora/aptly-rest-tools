@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use aptly_rest::AptlyRest;
 use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::Result;
+use mirror::MirrorCommand;
 use publish::PublishCommand;
 use repo::RepoCommand;
 use snapshot::SnapshotCommand;
@@ -10,6 +11,7 @@ use tracing::{info, metadata::LevelFilter};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
 
+mod mirror;
 mod publish;
 mod repo;
 mod snapshot;
@@ -40,6 +42,10 @@ enum Command {
         #[clap(subcommand)]
         command: SnapshotCommand,
     },
+    Mirror {
+        #[clap(subcommand)]
+        command: MirrorCommand,
+    },
     DbCleanup,
 }
 
@@ -66,6 +72,7 @@ async fn main() -> Result<ExitCode> {
         Command::Repo { command } => command.run(&aptly).await,
         Command::Publish { command } => command.run(&aptly).await,
         Command::Snapshot { command } => command.run(&aptly).await,
+        Command::Mirror { command } => command.run(&aptly).await,
         Command::DbCleanup => {
             aptly.db_cleanup().await?;
             info!("Ran database cleanup");

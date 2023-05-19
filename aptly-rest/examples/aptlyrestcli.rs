@@ -116,6 +116,16 @@ async fn list_repos(aplty: AptlyRest) -> Result<()> {
     Ok(())
 }
 
+async fn list_mirrors(aplty: AptlyRest) -> Result<()> {
+    let mirrors = aplty.mirrors().await?;
+
+    for m in mirrors {
+        println!("* {:?}", m);
+    }
+
+    Ok(())
+}
+
 #[derive(clap::Parser, Debug)]
 struct Scan {
     path: PathBuf,
@@ -152,6 +162,7 @@ enum Action {
     ParseChanges(ParseChanges),
     ParseDsc(ParseDsc),
     Repos,
+    Mirrors,
     Repo(Repo),
     Scan(Scan),
 }
@@ -174,6 +185,7 @@ async fn main() -> Result<()> {
         Action::ParseChanges(p) => parse_changes(p).await?,
         Action::ParseDsc(f) => parse_dsc(f).await?,
         Action::Repos => list_repos(aptly).await?,
+        Action::Mirrors => list_mirrors(aptly).await?,
         Action::Repo(r) => repo(r.name, aptly, r.action).await?,
         Action::Scan(s) => scan(s.path).await?,
     }
