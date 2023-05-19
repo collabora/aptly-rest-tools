@@ -139,8 +139,15 @@ impl MirrorUpdate<'_> {
     pub async fn run(&self) -> Result<(), AptlyRestError> {
         self.mirror
             .aptly
-            .put_body(self.mirror.url(), &self.request)
-            .await
+            .send_request(
+                self.mirror
+                    .aptly
+                    .client
+                    .put(self.mirror.url())
+                    .json(&self.request),
+            )
+            .await?;
+        Ok(())
     }
 }
 
