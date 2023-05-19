@@ -116,6 +116,70 @@ async fn list_repos(aplty: AptlyRest) -> Result<()> {
     Ok(())
 }
 
+#[derive(clap::Parser, Debug)]
+enum MirrorAction {
+    Create {
+        #[clap(long, default_value_t)]
+        ignore_signatures: bool,
+        #[clap(long, default_value_t)]
+        download_sources: bool,
+        archive_url: String,
+        distribution: String,
+    },
+    Update {
+        #[clap(long, default_value_t)]
+        ignore_signatures: bool,
+        #[clap(long, default_value_t)]
+        download_sources: bool,
+    },
+    Drop,
+}
+
+#[derive(clap::Parser, Debug)]
+struct Mirror {
+    name: String,
+    #[clap(subcommand)]
+    action: MirrorAction,
+}
+
+async fn mirror(name: String, aptly: AptlyRest, action: MirrorAction) -> Result<()> {
+    let mirror = aptly.mirror(name);
+    match action {
+        MirrorAction::Create {
+            archive_url,
+            ignore_signatures,
+            distribution,
+            download_sources,
+        } => {
+            let mut creation = mirror.create(archive_url);
+            creation.distribution(distribution);
+            if ignore_signatures {
+                creation.ignore_signatures(true);
+            }
+            if download_sources {
+                creation.download_sources(true);
+            }
+            println!("Created: {:?}", creation.run().await?);
+        }
+        MirrorAction::Update {
+            ignore_signatures,
+            download_sources,
+        } => {
+            let mut update = mirror.update();
+            if ignore_signatures {
+                update.ignore_signatures(true);
+            }
+            if download_sources {
+                update.download_sources(true);
+            }
+            update.run().await?;
+        }
+        MirrorAction::Drop => mirror.drop().await?,
+    }
+
+    Ok(())
+}
+
 async fn list_mirrors(aplty: AptlyRest) -> Result<()> {
     let mirrors = aplty.mirrors().await?;
 
@@ -162,8 +226,9 @@ enum Action {
     ParseChanges(ParseChanges),
     ParseDsc(ParseDsc),
     Repos,
-    Mirrors,
     Repo(Repo),
+    Mirrors,
+    Mirror(Mirror),
     Scan(Scan),
 }
 
@@ -185,8 +250,9 @@ async fn main() -> Result<()> {
         Action::ParseChanges(p) => parse_changes(p).await?,
         Action::ParseDsc(f) => parse_dsc(f).await?,
         Action::Repos => list_repos(aptly).await?,
-        Action::Mirrors => list_mirrors(aptly).await?,
         Action::Repo(r) => repo(r.name, aptly, r.action).await?,
+        Action::Mirrors => list_mirrors(aptly).await?,
+        Action::Mirror(m) => mirror(m.name, aptly, m.action).await?,
         Action::Scan(s) => scan(s.path).await?,
     }
 
