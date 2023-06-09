@@ -860,9 +860,10 @@ impl SyncActions {
 
         const DIR: &str = "obs2aptly";
         if let Err(err) = self.aptly.files().directory(DIR.to_owned()).delete().await {
-            let AptlyRestError::Request(inner) = &err;
-            if inner.status() != Some(http::StatusCode::NOT_FOUND) {
-                return Err(err.into());
+            if let AptlyRestError::Request(inner) = &err {
+                if inner.status() != Some(http::StatusCode::NOT_FOUND) {
+                    return Err(err.into());
+                }
             }
         }
 

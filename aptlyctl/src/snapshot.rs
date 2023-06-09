@@ -29,12 +29,13 @@ impl SnapshotCommand {
         match self {
             SnapshotCommand::TestExists(args) => {
                 if let Err(err) = aptly.snapshot(&args.snapshot).get().await {
-                    let AptlyRestError::Request(err) = err;
-                    if err.status() == Some(StatusCode::NOT_FOUND) {
-                        return Ok(ExitCode::FAILURE);
-                    } else {
-                        return Err(err.into());
+                    if let AptlyRestError::Request(err) = &err {
+                        if err.status() == Some(StatusCode::NOT_FOUND) {
+                            return Ok(ExitCode::FAILURE);
+                        }
                     }
+
+                    return Err(err.into());
                 }
             }
             SnapshotCommand::Drop(args) => {

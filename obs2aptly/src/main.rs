@@ -13,6 +13,9 @@ struct Opts {
     /// Url for the aptly rest api endpoint
     #[clap(short, long, default_value = "http://localhost:8080")]
     url: url::Url,
+    /// Authentication token for the API
+    #[clap(short, long, env = "APTLY_AUTH_TOKEN")]
+    auth_token: Option<String>,
     /// Repo in aptly
     aptly_repo: String,
     /// Directory with obs repositories
@@ -30,7 +33,11 @@ async fn main() -> Result<()> {
         .init();
     color_eyre::install().unwrap();
     let opts = Opts::parse();
-    let aptly = AptlyRest::new(opts.url);
+    let aptly = if let Some(token) = opts.auth_token {
+        AptlyRest::new_with_token(opts.url, &token)?
+    } else {
+        AptlyRest::new(opts.url)
+    };
 
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
     let obs_content = ObsContent::new_from_path(opts.obs_repo).await?;

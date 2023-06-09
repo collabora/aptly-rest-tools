@@ -12,7 +12,7 @@ tokio = { version = "1.19.2", features = ["full"] }
 
 tokio-util = { version = "0.7.3", features = ["compat"] }
 async-walkdir = "0.2.0"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 debian-packaging = "0.15.0"
 futures = "0.3.21"
 walker = "1.0.1"

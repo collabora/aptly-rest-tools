@@ -47,9 +47,12 @@ enum Command {
 struct Opts {
     #[clap(subcommand)]
     command: Command,
-    /// Url for the aptly rest api endpoint
+    /// Url for the aptly rest API endpoint
     #[clap(short, long, default_value = "http://localhost:8080")]
     url: url::Url,
+    /// Authentication token for the API
+    #[clap(short, long, env = "APTLY_AUTH_TOKEN")]
+    auth_token: Option<String>,
 }
 
 #[tokio::main]
@@ -60,7 +63,11 @@ async fn main() -> Result<ExitCode> {
         .init();
     color_eyre::install().unwrap();
     let opts = Opts::parse();
-    let aptly = AptlyRest::new(opts.url);
+    let aptly = if let Some(token) = opts.auth_token {
+        AptlyRest::new_with_token(opts.url, &token)?
+    } else {
+        AptlyRest::new(opts.url)
+    };
 
     match opts.command {
         Command::Repo { command } => command.run(&aptly).await,

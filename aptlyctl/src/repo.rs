@@ -101,12 +101,13 @@ impl RepoCommand {
 
             RepoCommand::TestExists(args) => {
                 if let Err(err) = aptly.repo(&args.repo).get().await {
-                    let AptlyRestError::Request(err) = err;
-                    if err.status() == Some(StatusCode::NOT_FOUND) {
-                        return Ok(ExitCode::FAILURE);
-                    } else {
-                        return Err(err.into());
+                    if let AptlyRestError::Request(err) = &err {
+                        if err.status() == Some(StatusCode::NOT_FOUND) {
+                            return Ok(ExitCode::FAILURE);
+                        }
                     }
+
+                    return Err(err.into());
                 }
             }
 
