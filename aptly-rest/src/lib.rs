@@ -5,6 +5,7 @@ use api::{
     repos::{Repo, RepoApi},
     snapshots::{Snapshot, SnapshotApi},
 };
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
@@ -19,6 +20,8 @@ pub mod utils;
 pub enum AptlyRestError {
     #[error("Http Request failed {0}")]
     Request(#[from] reqwest::Error),
+    #[error("Invalid authentication token {0}")]
+    InvalidAuthToken(#[from] header::InvalidHeaderValue),
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +36,18 @@ impl AptlyRest {
             client: reqwest::Client::new(),
             url,
         }
+    }
+
+    pub fn new_with_token(url: Url, token: &str) -> Result<Self, AptlyRestError> {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(header::AUTHORIZATION, format!("Bearer {token}").parse()?);
+
+        Ok(Self {
+            client: reqwest::ClientBuilder::new()
+                .default_headers(headers)
+                .build()?,
+            url,
+        })
     }
 
     pub async fn version(&self) -> Result<String, AptlyRestError> {
