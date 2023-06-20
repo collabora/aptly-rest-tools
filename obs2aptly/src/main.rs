@@ -11,7 +11,12 @@ use tracing_subscriber::prelude::*;
 #[derive(Parser, Debug)]
 struct Opts {
     /// Url for the aptly rest api endpoint
-    #[clap(short, long, default_value = "http://localhost:8080")]
+    #[clap(
+        short = 'u',
+        long,
+        env = "APTLY_API_URL",
+        default_value = "http://localhost:8080"
+    )]
     api_url: url::Url,
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]

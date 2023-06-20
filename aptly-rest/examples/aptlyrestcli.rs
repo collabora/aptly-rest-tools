@@ -158,7 +158,12 @@ enum Action {
 
 #[derive(clap::Parser, Debug)]
 struct Opts {
-    #[clap(short = 'u', long, default_value = "http://localhost:8080")]
+    #[clap(
+        short = 'u',
+        long,
+        env = "APTLY_API_URL",
+        default_value = "http://localhost:8080"
+    )]
     api_url: Url,
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]

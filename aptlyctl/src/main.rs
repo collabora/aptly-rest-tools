@@ -48,7 +48,12 @@ struct Opts {
     #[clap(subcommand)]
     command: Command,
     /// Url for the aptly rest API endpoint
-    #[clap(short = 'u', long, default_value = "http://localhost:8080")]
+    #[clap(
+        short = 'u',
+        long,
+        env = "APTLY_API_URL",
+        default_value = "http://localhost:8080"
+    )]
     api_url: url::Url,
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]
