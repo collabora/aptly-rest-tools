@@ -158,11 +158,11 @@ enum Action {
 
 #[derive(clap::Parser, Debug)]
 struct Opts {
-    #[clap(short, long, default_value = "http://localhost:8080")]
-    url: Url,
+    #[clap(short = 'u', long, default_value = "http://localhost:8080")]
+    api_url: Url,
     /// Authentication token for the API
-    #[clap(short, long, env = "APTLY_AUTH_TOKEN")]
-    auth_token: Option<String>,
+    #[clap(long, env = "APTLY_API_TOKEN")]
+    api_token: Option<String>,
     #[clap(subcommand)]
     action: Action,
 }
@@ -171,10 +171,10 @@ struct Opts {
 async fn main() -> Result<()> {
     let opts = Opts::parse();
 
-    let aptly = if let Some(token) = opts.auth_token {
-        AptlyRest::new_with_token(opts.url, &token)?
+    let aptly = if let Some(token) = opts.api_token {
+        AptlyRest::new_with_token(opts.api_url, &token)?
     } else {
-        AptlyRest::new(opts.url)
+        AptlyRest::new(opts.api_url)
     };
 
     match opts.action {
