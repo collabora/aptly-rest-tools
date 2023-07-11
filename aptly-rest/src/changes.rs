@@ -4,12 +4,11 @@ use debian_packaging::{
     package_version::PackageVersion,
 };
 use futures::io::BufReader;
-use std::{
-    hash::Hasher,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tokio::fs::File;
 use tokio_util::compat::TokioAsyncReadCompatExt;
+
+use crate::key::{AptlyHashBuilder, AptlyHashFile};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ChangesError {
@@ -211,15 +210,15 @@ impl ChangesFile {
     }
 
     pub fn aptly_hash(&self) -> String {
-        let mut hasher = fnv::FnvHasher::default();
-
-        hasher.write(self.name.as_bytes());
-        hasher.write(&self.size.to_be_bytes());
-        hasher.write(self.md5.as_bytes());
-        hasher.write(self.sha1.as_bytes());
-        hasher.write(self.sha256.as_bytes());
-
-        format!("{:x}", hasher.finish())
+        AptlyHashBuilder::default()
+            .file(&AptlyHashFile {
+                basename: &self.name,
+                size: self.size,
+                md5: &self.md5,
+                sha1: &self.sha1,
+                sha256: &self.sha256,
+            })
+            .finish()
     }
 }
 
