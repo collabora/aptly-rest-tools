@@ -3519,6 +3519,7 @@ dependencies = [
  "async-trait",
  "color-eyre",
  "debian-packaging",
+ "futures",
  "http",
  "serde",
  "tokio",

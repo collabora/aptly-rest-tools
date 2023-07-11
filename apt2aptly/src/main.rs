@@ -4,7 +4,7 @@ use aptly_rest::{api::snapshots::DeleteOptions, AptlyRest, AptlyRestError};
 use clap::Parser;
 use color_eyre::{eyre::bail, Result};
 use http::StatusCode;
-use sync2aptly::AptlyContent;
+use sync2aptly::{AptlyContent, UploadOptions};
 use tracing::{info, metadata::LevelFilter};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -34,6 +34,9 @@ struct Opts {
     /// If a snapshot already exists with the name, delete it.
     #[clap(long)]
     delete_existing_snapshot: bool,
+    /// Maximum number of parallel uploads
+    #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
+    max_parallel_uploads: u8,
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
@@ -104,7 +107,14 @@ async fn main() -> Result<()> {
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo.clone()).await?;
     let actions = apt2aptly::sync(&opts.apt_root, &dist, aptly.clone(), aptly_contents).await?;
     if !opts.dry_run {
-        actions.apply("apt2aptly").await?;
+        actions
+            .apply(
+                "apt2aptly",
+                &UploadOptions {
+                    max_parallel: opts.max_parallel_uploads,
+                },
+            )
+            .await?;
 
         if let Some(snapshot) = &opts.snapshot {
             aptly

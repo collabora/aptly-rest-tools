@@ -6,6 +6,7 @@ use debian_packaging::{
     deb::reader::{BinaryPackageEntry, BinaryPackageReader, ControlTarFile},
     package_version::PackageVersion,
 };
+use futures::{stream::FuturesUnordered, Future, FutureExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -376,9 +377,62 @@ impl PoolPackagesByName {
     }
 }
 
+struct UploadTaskRunner<F: Future<Output = Result<()>>> {
+    futures: FuturesUnordered<F>,
+    max_parallel: u8,
+}
+
+impl<F: Future<Output = Result<()>>> UploadTaskRunner<F> {
+    fn new(max_parallel: u8) -> Result<Self> {
+        ensure!(
+            max_parallel >= 1,
+            "max_parallel value too small: {max_parallel}"
+        );
+
+        Ok(Self {
+            futures: FuturesUnordered::new(),
+            max_parallel,
+        })
+    }
+
+    async fn push_when_space_available(&mut self, future: F) -> Result<()> {
+        while self.futures.len() >= self.max_parallel as usize {
+            self.futures.next().await.unwrap()?;
+        }
+
+        self.futures.push(future);
+        Ok(())
+    }
+
+    fn check_finished_tasks(&mut self) -> Result<()> {
+        loop {
+            match self.futures.next().now_or_never() {
+                Some(Some(Ok(()))) => (),
+                Some(Some(Err(e))) => return Err(e),
+                Some(None) | None => break,
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn wait_for_remaining_tasks(&mut self) -> Result<()> {
+        while let Some(result) = self.futures.next().await {
+            result?;
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 pub struct AddDebOptions {
     pub match_existing: MatchPoolPackageBy,
+}
+
+#[derive(Default)]
+pub struct UploadOptions {
+    pub max_parallel: u8,
 }
 
 #[derive(Debug)]
@@ -546,7 +600,7 @@ impl SyncActions {
     }
 
     #[tracing::instrument(skip_all)]
-    pub async fn apply(&self, upload_dir: &str) -> Result<()> {
+    pub async fn apply(&self, upload_dir: &str, upload_options: &UploadOptions) -> Result<()> {
         if self.actions.is_empty() {
             info!("Nothing to do.");
             return Ok(());
@@ -570,10 +624,16 @@ impl SyncActions {
         let mut to_remove = HashSet::<AptlyKey>::new();
         let mut to_reuse = HashSet::<AptlyKey>::new();
 
+        let mut uploads = UploadTaskRunner::new(upload_options.max_parallel)?;
+
         for action in &self.actions {
+            uploads.check_finished_tasks()?;
+
             match action {
                 SyncAction::AddDeb { path, .. } => {
-                    self.upload_file(upload_dir.to_owned(), path).await?;
+                    uploads
+                        .push_when_space_available(self.upload_file(upload_dir.to_owned(), path))
+                        .await?;
                     uploaded_packages += 1;
                 }
                 SyncAction::AddDsc {
@@ -582,7 +642,11 @@ impl SyncActions {
                     ..
                 } => {
                     for path in std::iter::once(dsc_path).chain(referenced_paths) {
-                        self.upload_file(upload_dir.to_owned(), path).await?;
+                        uploads
+                            .push_when_space_available(
+                                self.upload_file(upload_dir.to_owned(), path),
+                            )
+                            .await?;
                     }
 
                     uploaded_packages += 1;
@@ -595,6 +659,8 @@ impl SyncActions {
                 }
             }
         }
+
+        uploads.wait_for_remaining_tasks().await?;
 
         if !to_reuse.is_empty() {
             info!(
