@@ -9,9 +9,9 @@ use aptly_rest::{key::AptlyKey, AptlyRest};
 use aptly_rest_mock::AptlyRestMock;
 use color_eyre::{eyre::eyre, Result};
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
-use obs2aptly::{AptlyContent, ObsContent, SyncAction};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
+use sync2aptly::{AptlyContent, SyncAction};
 
 fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -135,11 +135,7 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
         }
     }
 
-    let obs_content = ObsContent::new_from_path(obs_temp_dir.path().to_owned())
-        .await
-        .unwrap();
-
-    let actions = obs2aptly::sync(aptly, obs_content, aptly_contents)
+    let actions = obs2aptly::sync(obs_temp_dir.path().to_owned(), aptly, aptly_contents)
         .await
         .unwrap();
     let expected = load_expected_actions(&data_path(&path, "expected.json"));

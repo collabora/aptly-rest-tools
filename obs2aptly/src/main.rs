@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use aptly_rest::AptlyRest;
 use clap::Parser;
 use color_eyre::Result;
-use obs2aptly::{AptlyContent, ObsContent};
+use sync2aptly::AptlyContent;
 use tracing::metadata::LevelFilter;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -45,11 +45,9 @@ async fn main() -> Result<()> {
     };
 
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
-    let obs_content = ObsContent::new_from_path(opts.obs_repo).await?;
-
-    let actions = obs2aptly::sync(aptly, obs_content, aptly_contents).await?;
+    let actions = obs2aptly::sync(opts.obs_repo, aptly, aptly_contents).await?;
     if !opts.dry_run {
-        actions.apply().await?;
+        actions.apply("obs2aptly").await?;
     }
 
     Ok(())
