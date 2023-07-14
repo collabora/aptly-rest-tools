@@ -1,11 +1,17 @@
-use color_eyre::{eyre::ensure, Result};
-use debian_packaging::package_version::PackageVersion;
+use color_eyre::{
+    eyre::{bail, ensure, eyre},
+    Result,
+};
+use debian_packaging::{
+    deb::reader::{BinaryPackageEntry, BinaryPackageReader, ControlTarFile},
+    package_version::PackageVersion,
+};
 use futures::TryStreamExt;
 use std::{collections::HashMap, path::PathBuf};
 use sync2aptly::{
     AddDebOptions, AptlyContent, AptlyPackage, MatchPoolPackageBy, OriginContent,
-    OriginContentBuilder, OriginDeb, OriginDsc, OriginPackage, OriginSource, PackageName,
-    SyncActions, Syncer, Syncers,
+    OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation, OriginPackage, OriginSource,
+    PackageName, SyncActions, Syncer, Syncers,
 };
 use tracing::{info, warn};
 
@@ -24,7 +30,7 @@ fn origin_deb_for_changes_file(changes: &Changes, f: &ChangesFile) -> Result<Ori
     Ok(OriginDeb {
         package: package_name,
         architecture: info.architecture.to_owned(),
-        path: changes.path().with_file_name(&f.name),
+        location: OriginLocation::Path(changes.path().with_file_name(&f.name)),
         from_source: Some((changes.source()?.to_owned().into(), changes.version()?)),
         aptly_hash: f.aptly_hash(),
     })
@@ -36,7 +42,7 @@ fn origin_dsc_for_aptly_dsc(dsc: &Dsc) -> Result<OriginDsc> {
     let package: PackageName = a.package().into();
     Ok(OriginDsc {
         package,
-        dsc_path: dsc.path().to_owned(),
+        dsc_location: OriginLocation::Path(dsc.path().to_owned()),
         files: dsc.files()?,
         aptly_hash: a.hash().to_string(),
     })
@@ -66,6 +72,57 @@ async fn scan_content(path: PathBuf) -> Result<OriginContent> {
     }
 
     Ok(builder.build())
+}
+
+trait OriginDebVersion {
+    fn version(&self) -> Result<PackageVersion>;
+}
+
+impl OriginDebVersion for OriginDeb {
+    fn version(&self) -> Result<PackageVersion> {
+        let path = self
+            .location
+            .as_path()
+            .ok_or_else(|| eyre!("non-path origin location {}", self.location))?;
+
+        let f = std::fs::File::open(path)?;
+        let mut parser = BinaryPackageReader::new(f)?;
+
+        while let Some(entry) = parser.next_entry() {
+            if let Ok(BinaryPackageEntry::Control(mut control)) = entry {
+                let entries = control.entries()?;
+                for e in entries {
+                    let mut e = e?;
+                    if let (_, ControlTarFile::Control(c)) = e.to_control_file()? {
+                        return c.version().map_err(|e| e.into());
+                    }
+                }
+            }
+        }
+
+        bail!("Version not found in {}", path.display());
+    }
+}
+
+trait OriginPackageNewest {
+    fn newest(&self) -> Result<&OriginDeb>;
+}
+
+impl OriginPackageNewest for OriginPackage {
+    #[tracing::instrument]
+    fn newest(&self) -> Result<&OriginDeb> {
+        let mut n = self
+            .debs()
+            .get(0)
+            .ok_or_else(|| eyre!("No debs in package"))?;
+        for deb in &self.debs()[1..] {
+            if deb.version()? > n.version()? {
+                n = deb;
+            }
+        }
+
+        Ok(n)
+    }
 }
 
 pub struct BinaryDepSyncer;
@@ -271,7 +328,7 @@ impl Syncer for SourceSyncer {
             origin
                 .sources()
                 .iter()
-                .map(|s| s.dsc_path.display().to_string())
+                .map(|s| s.dsc_location.to_string())
                 .collect::<Vec<_>>()
                 .join(" ")
         );

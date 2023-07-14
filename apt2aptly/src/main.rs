@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use aptly_rest::{api::snapshots::DeleteOptions, AptlyRest, AptlyRestError};
 use clap::Parser;
 use color_eyre::{eyre::bail, Result};
@@ -8,6 +6,7 @@ use sync2aptly::{AptlyContent, UploadOptions};
 use tracing::{info, metadata::LevelFilter};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
+use url::Url;
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -24,8 +23,8 @@ struct Opts {
     api_token: Option<String>,
     /// Repo in aptly
     aptly_repo: String,
-    /// Root directory of apt repository
-    apt_root: PathBuf,
+    /// Root URL of apt repository
+    apt_root: Url,
     /// Apt repository distribution
     dist: String,
     /// Import the given apt snapshot and create a new one with the same name
@@ -36,7 +35,7 @@ struct Opts {
     delete_existing_snapshot: bool,
     /// Maximum number of parallel uploads
     #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
-    max_parallel_uploads: u8,
+    max_parallel: u8,
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
@@ -111,7 +110,7 @@ async fn main() -> Result<()> {
             .apply(
                 "apt2aptly",
                 &UploadOptions {
-                    max_parallel: opts.max_parallel_uploads,
+                    max_parallel: opts.max_parallel,
                 },
             )
             .await?;

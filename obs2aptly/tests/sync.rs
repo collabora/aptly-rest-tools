@@ -41,11 +41,21 @@ impl ExpectedAction {
         path_prefix: &Path,
     ) -> bool {
         match (expected, action) {
-            (ExpectedSyncAction::AddDeb(e), SyncAction::AddDeb { path, .. }) => {
-                path.strip_prefix(path_prefix).unwrap() == e
+            (ExpectedSyncAction::AddDeb(e), SyncAction::AddDeb { location, .. }) => {
+                location
+                    .as_path()
+                    .unwrap()
+                    .strip_prefix(path_prefix)
+                    .unwrap()
+                    == e
             }
-            (ExpectedSyncAction::AddDsc(e), SyncAction::AddDsc { dsc_path, .. }) => {
-                dsc_path.strip_prefix(path_prefix).unwrap() == e[0]
+            (ExpectedSyncAction::AddDsc(e), SyncAction::AddDsc { dsc_location, .. }) => {
+                dsc_location
+                    .as_path()
+                    .unwrap()
+                    .strip_prefix(path_prefix)
+                    .unwrap()
+                    == e[0]
             }
             (ExpectedSyncAction::RemoveAptly(e), SyncAction::RemoveAptly(a)) => e == a,
             _ => false,

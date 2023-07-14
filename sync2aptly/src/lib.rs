@@ -1,12 +1,12 @@
+use backoff::{Error as BackoffError, ExponentialBackoff};
 use color_eyre::{
     eyre::{bail, ensure, eyre},
-    Result,
+    Report, Result,
 };
-use debian_packaging::{
-    deb::reader::{BinaryPackageEntry, BinaryPackageReader, ControlTarFile},
-    package_version::PackageVersion,
-};
+use debian_packaging::package_version::PackageVersion;
 use futures::{stream::FuturesUnordered, Future, FutureExt, StreamExt};
+use http::StatusCode;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -14,8 +14,13 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::fs::File;
+use tempfile::tempfile;
+use tokio::{
+    fs::File,
+    io::{AsyncSeekExt, AsyncWriteExt},
+};
 use tracing::{debug, error, info, warn};
+use url::Url;
 
 use aptly_rest::{
     api::{files::UploadFiles, packages},
@@ -147,43 +152,96 @@ impl AptlyContent {
     }
 }
 
+#[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum OriginLocation {
+    Path(PathBuf),
+    Url(Url),
+}
+
+impl OriginLocation {
+    pub fn as_path(&self) -> Option<&Path> {
+        if let OriginLocation::Path(path) = self {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_url(&self) -> Option<&Url> {
+        if let OriginLocation::Url(url) = self {
+            Some(url)
+        } else {
+            None
+        }
+    }
+
+    pub fn parent(&self) -> Option<OriginLocation> {
+        match self {
+            OriginLocation::Path(path) => path.parent().map(|p| OriginLocation::Path(p.to_owned())),
+            OriginLocation::Url(url) => {
+                let mut new_url = url.clone();
+                {
+                    let mut segments = new_url.path_segments_mut().ok()?;
+                    segments.pop_if_empty();
+                    segments.pop();
+                }
+                Some(OriginLocation::Url(new_url))
+            }
+        }
+    }
+
+    pub fn file_name(&self) -> Option<&str> {
+        match self {
+            OriginLocation::Path(path) => path.file_name().and_then(|f| f.to_str()),
+            OriginLocation::Url(url) => url.path_segments().and_then(|s| s.last()),
+        }
+    }
+
+    pub fn join(&self, child: &str) -> Result<OriginLocation> {
+        match self {
+            OriginLocation::Path(p) => Ok(OriginLocation::Path(p.join(child))),
+            OriginLocation::Url(url) => {
+                // Don't use url.join(), because that has special behavior
+                // depending on whether or not the base has a trailing slash.
+                // Instead, just parse and extend the path ourselves.
+                let mut new_url = url.clone();
+                {
+                    let mut segments = new_url
+                        .path_segments_mut()
+                        .map_err(|()| eyre!("Invalid base URL"))?;
+                    segments.pop_if_empty();
+                    for part in child.strip_prefix('/').unwrap_or(child).split('/') {
+                        segments.push(part);
+                    }
+                }
+
+                Ok(OriginLocation::Url(new_url))
+            }
+        }
+    }
+}
+
+impl Display for OriginLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OriginLocation::Path(path) => write!(f, "{}", path.display()),
+            OriginLocation::Url(url) => write!(f, "{}", url),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct OriginDeb {
     pub package: PackageName,
     pub architecture: String,
-    pub path: PathBuf,
+    pub location: OriginLocation,
     pub from_source: Option<(PackageName, PackageVersion)>,
     pub aptly_hash: String,
 }
 
-impl OriginDeb {
-    #[tracing::instrument]
-    pub fn version(&self) -> Result<PackageVersion> {
-        let f = std::fs::File::open(&self.path)?;
-        let mut parser = BinaryPackageReader::new(f)?;
-
-        while let Some(entry) = parser.next_entry() {
-            if let Ok(BinaryPackageEntry::Control(mut control)) = entry {
-                let entries = control.entries()?;
-                for e in entries {
-                    let mut e = e?;
-                    if let (_, ControlTarFile::Control(c)) = e.to_control_file()? {
-                        return c.version().map_err(|e| e.into());
-                    }
-                }
-            }
-        }
-
-        bail!("Version not found in {}", self.path.display());
-    }
-}
-
 impl Display for OriginDeb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.version() {
-            Ok(version) => f.write_fmt(format_args!("{} {}", self.path.display(), version)),
-            _ => f.write_fmt(format_args!("{} ???", self.path.display())),
-        }
+        write!(f, "{}", self.location)
     }
 }
 
@@ -200,27 +258,12 @@ impl OriginPackage {
     pub fn push(&mut self, deb: OriginDeb) {
         self.debs.push(deb)
     }
-
-    #[tracing::instrument]
-    pub fn newest(&self) -> Result<&OriginDeb> {
-        let mut n = self
-            .debs
-            .get(0)
-            .ok_or_else(|| eyre!("No debs in package"))?;
-        for deb in &self.debs[1..] {
-            if deb.version()? > n.version()? {
-                n = deb;
-            }
-        }
-
-        Ok(n)
-    }
 }
 
 #[derive(Debug)]
 pub struct OriginDsc {
     pub package: PackageName,
-    pub dsc_path: PathBuf,
+    pub dsc_location: OriginLocation,
     pub files: Vec<DscFile>,
     pub aptly_hash: String,
 }
@@ -322,14 +365,14 @@ pub enum SyncAction {
     AddDeb {
         package: String,
         aptly_hash: String,
-        path: PathBuf,
+        location: OriginLocation,
         match_existing: MatchPoolPackageBy,
     },
     AddDsc {
         package: String,
         aptly_hash: String,
-        dsc_path: PathBuf,
-        referenced_paths: Vec<PathBuf>,
+        dsc_location: OriginLocation,
+        referenced_locations: Vec<OriginLocation>,
     },
     AddPoolPackage(AptlyKey),
     RemoveAptly(AptlyKey),
@@ -344,7 +387,7 @@ impl PoolPackagesByName {
         &self,
         package: &str,
         aptly_hash: &str,
-        path: &Path,
+        location: &OriginLocation,
         match_existing: MatchPoolPackageBy,
     ) -> Result<Option<AptlyKey>> {
         let Some(packages) = self.0.get(package) else {
@@ -357,7 +400,9 @@ impl PoolPackagesByName {
             return Ok(Some(existing_package_with_hash.key().clone()));
         }
 
-        let filename = path.file_name().unwrap();
+        let filename = location
+            .file_name()
+            .ok_or_else(|| eyre!("Invalid location"))?;
         if let Some(existing_package_with_filename) = packages.iter().find(|m| match *m {
             packages::Package::Source(source) => source
                 .sha256_files()
@@ -435,11 +480,18 @@ pub struct UploadOptions {
     pub max_parallel: u8,
 }
 
+fn is_reqwest_error_retriable(e: &reqwest::Error) -> bool {
+    !e.status()
+        .as_ref()
+        .map_or(false, StatusCode::is_client_error)
+}
+
 #[derive(Debug)]
 pub struct SyncActions {
     aptly: AptlyRest,
     repo: String,
     actions: Vec<SyncAction>,
+    client: Client,
 }
 
 impl SyncActions {
@@ -448,6 +500,7 @@ impl SyncActions {
             aptly,
             repo,
             actions: Vec::new(),
+            client: Client::new(),
         }
     }
 
@@ -456,38 +509,39 @@ impl SyncActions {
     }
 
     pub fn add_deb_with_options(&mut self, d: &OriginDeb, options: &AddDebOptions) {
-        info!("Adding deb: {}", d.path.display());
+        info!("Adding deb: {}", d.location);
         self.actions.push(SyncAction::AddDeb {
             package: d.package.name().to_owned(),
             aptly_hash: d.aptly_hash.clone(),
-            path: d.path.clone(),
+            location: d.location.clone(),
             match_existing: options.match_existing,
         });
     }
 
     #[tracing::instrument(skip_all)]
     pub fn add_dsc(&mut self, d: &OriginDsc) -> Result<()> {
-        info!("Add dsc: {}", d.dsc_path.display());
+        info!("Add dsc: {}", d.dsc_location);
 
-        let (dsc_parent, dsc_filename) = match (d.dsc_path.parent(), d.dsc_path.file_name()) {
+        let (dsc_parent, dsc_filename) = match (d.dsc_location.parent(), d.dsc_location.file_name())
+        {
             (Some(parent), Some(filename)) => (parent, filename),
-            _ => bail!("Invalid .dsc path '{}'", d.dsc_path.display()),
+            _ => bail!("Invalid .dsc path '{}'", d.dsc_location),
         };
 
-        let referenced_paths = d
+        let referenced_locations = d
             .files
             .iter()
             // The .dsc references itself, so make sure we remove that
             // to avoid duplicates.
             .filter(|f| f.name.as_str() != dsc_filename)
             .map(|f| dsc_parent.join(&f.name))
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         self.actions.push(SyncAction::AddDsc {
             package: d.package.name().to_owned(),
             aptly_hash: d.aptly_hash.clone(),
-            dsc_path: d.dsc_path.to_owned(),
-            referenced_paths,
+            dsc_location: d.dsc_location.clone(),
+            referenced_locations,
         });
         Ok(())
     }
@@ -545,32 +599,32 @@ impl SyncActions {
                 SyncAction::AddDeb {
                     package,
                     aptly_hash,
-                    path,
+                    location,
                     match_existing,
                 } => {
                     if let Some(key) = pool_packages.find_matching_package(
                         package,
                         aptly_hash,
-                        path,
+                        location,
                         *match_existing,
                     )? {
-                        info!("Using package '{key}' for '{}'", path.display());
+                        info!("Using package '{key}' for '{}'", location);
                         *action = SyncAction::AddPoolPackage(key);
                     }
                 }
                 SyncAction::AddDsc {
                     package,
                     aptly_hash,
-                    dsc_path,
+                    dsc_location,
                     ..
                 } => {
                     if let Some(key) = pool_packages.find_matching_package(
                         package,
                         aptly_hash,
-                        dsc_path,
+                        dsc_location,
                         MatchPoolPackageBy::KeyOnly,
                     )? {
-                        info!("Using package '{key}' for '{}'", dsc_path.display());
+                        info!("Using package '{key}' for '{}'", dsc_location);
                         *action = SyncAction::AddPoolPackage(key);
                     }
                 }
@@ -581,21 +635,79 @@ impl SyncActions {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn upload_file(&self, directory: String, path: &Path) -> Result<()> {
-        info!("Uploading {}", path.display());
+    async fn upload_file(&self, directory: String, location: &OriginLocation) -> Result<()> {
+        info!("Uploading {}", location);
 
-        let filename = path
+        let filename = location
             .file_name()
-            .and_then(|f| f.to_str())
             .map(|f| f.to_owned())
-            .ok_or_else(|| eyre!("Invalid path"))?;
+            .ok_or_else(|| eyre!("Invalid location"))?;
 
-        let file = File::open(path).await?;
-        self.aptly
-            .files()
-            .directory(directory)
-            .upload(UploadFiles::new().file(filename, file))
-            .await?;
+        let file = match location {
+            OriginLocation::Path(path) => File::open(path).await?,
+            OriginLocation::Url(url) => {
+                backoff::future::retry(ExponentialBackoff::default(), || async {
+                    let mut dest =
+                        File::from_std(tempfile().map_err(|e| BackoffError::permanent(e.into()))?);
+                    let response = self
+                        .client
+                        .get(url.clone())
+                        .send()
+                        .await
+                        .and_then(|r| r.error_for_status())
+                        .map_err(|e| {
+                            if is_reqwest_error_retriable(&e) {
+                                warn!("Failed to download {url}: {}", e);
+                                BackoffError::transient(e.into())
+                            } else {
+                                BackoffError::permanent(e.into())
+                            }
+                        })?;
+
+                    let mut stream = response.bytes_stream();
+                    while let Some(chunk) = stream.next().await {
+                        let mut chunk = chunk.map_err(|e| {
+                            warn!("Failed to download {url}: {}", e);
+                            BackoffError::transient(e.into())
+                        })?;
+
+                        dest.write_all_buf(&mut chunk)
+                            .await
+                            .map_err(|e| BackoffError::permanent(e.into()))?;
+                    }
+
+                    dest.rewind()
+                        .await
+                        .map_err(|e| BackoffError::permanent(e.into()))?;
+                    Ok::<_, BackoffError<Report>>(dest)
+                })
+                .await?
+            }
+        };
+
+        backoff::future::retry(ExponentialBackoff::default(), || async {
+            self.aptly
+                .files()
+                .directory(directory.clone())
+                .upload(
+                    UploadFiles::new().file(
+                        filename.clone(),
+                        file.try_clone()
+                            .await
+                            .map_err(|e| BackoffError::permanent(e.into()))?,
+                    ),
+                )
+                .await
+                .map_err::<BackoffError<Report>, _>(|e| match &e {
+                    AptlyRestError::Request(r) if is_reqwest_error_retriable(r) => {
+                        warn!("Failed to upload {filename}: {}", e);
+                        BackoffError::transient(e.into())
+                    }
+                    _ => BackoffError::permanent(e.into()),
+                })
+        })
+        .await?;
+
         Ok(())
     }
 
@@ -630,21 +742,23 @@ impl SyncActions {
             uploads.check_finished_tasks()?;
 
             match action {
-                SyncAction::AddDeb { path, .. } => {
+                SyncAction::AddDeb { location, .. } => {
                     uploads
-                        .push_when_space_available(self.upload_file(upload_dir.to_owned(), path))
+                        .push_when_space_available(
+                            self.upload_file(upload_dir.to_owned(), location),
+                        )
                         .await?;
                     uploaded_packages += 1;
                 }
                 SyncAction::AddDsc {
-                    dsc_path,
-                    referenced_paths,
+                    dsc_location,
+                    referenced_locations,
                     ..
                 } => {
-                    for path in std::iter::once(dsc_path).chain(referenced_paths) {
+                    for location in std::iter::once(dsc_location).chain(referenced_locations) {
                         uploads
                             .push_when_space_available(
-                                self.upload_file(upload_dir.to_owned(), path),
+                                self.upload_file(upload_dir.to_owned(), location),
                             )
                             .await?;
                     }

@@ -10,18 +10,19 @@ use debian_packaging::{
     io::Compression,
     repository::{
         builder::DebPackageReference,
-        filesystem::FilesystemRepositoryReader,
+        http::HttpRepositoryClient,
         release::{ChecksumType, ReleaseFileEntry},
         ReleaseReader, RepositoryRootReader,
     },
 };
 use futures::io::{AsyncBufRead, BufReader as AsyncBufReader};
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 use sync2aptly::{
     AptlyContent, AptlyPackage, OriginContent, OriginContentBuilder, OriginDeb, OriginDsc,
-    OriginPackage, OriginSource, PackageName, SyncActions, Syncer, Syncers,
+    OriginLocation, OriginPackage, OriginSource, PackageName, SyncActions, Syncer, Syncers,
 };
 use tracing::{info, info_span, warn};
+use url::Url;
 
 use aptly_rest::{
     dsc::DscFile,
@@ -33,10 +34,16 @@ use aptly_rest::{
 async fn entry_reader(
     release: &dyn ReleaseReader,
     entry: &ReleaseFileEntry<'_>,
+    compression: Compression,
 ) -> Result<ControlParagraphAsyncReader<impl AsyncBufRead>> {
     Ok(ControlParagraphAsyncReader::new(AsyncBufReader::new(
         release
-            .get_path_with_digest_verification(entry.path, entry.size, entry.digest.clone())
+            .get_path_decoded_with_digest_verification(
+                entry.path,
+                compression,
+                entry.size,
+                entry.digest.clone(),
+            )
             .await?,
     )))
 }
@@ -48,10 +55,10 @@ fn basename_or_error(path: &str) -> Result<&str> {
         .ok_or_else(|| eyre!("Bad filename {path}"))
 }
 
-#[tracing::instrument(skip(builder, release))]
+#[tracing::instrument(skip(builder, root_location, release))]
 async fn scan_dist_packages(
     builder: &mut OriginContentBuilder,
-    root_path: &Path,
+    root_location: &OriginLocation,
     release: &dyn ReleaseReader,
     component: &str,
     arch: &str,
@@ -67,7 +74,7 @@ async fn scan_dist_packages(
         Err(err) => return Err(err.into()),
     };
 
-    let mut reader = entry_reader(release, &entry).await?;
+    let mut reader = entry_reader(release, &entry, entry.compression).await?;
     while let Some(paragraph) = reader.read_paragraph().await? {
         let bin = BinaryPackageControlFile::from(paragraph);
         let package = bin.package()?.into();
@@ -90,7 +97,7 @@ async fn scan_dist_packages(
         builder.add_deb(OriginDeb {
             package,
             architecture: bin.architecture()?.to_owned(),
-            path: root_path.join(filename),
+            location: root_location.join(filename)?,
             from_source: None,
             aptly_hash,
         });
@@ -159,17 +166,17 @@ fn find_dsc_file(files: &[DscFile]) -> Result<&DscFile> {
     Ok(dsc_files[0])
 }
 
-#[tracing::instrument(skip(builder, release))]
+#[tracing::instrument(skip(builder, root_location, release))]
 async fn scan_dist_sources(
     builder: &mut OriginContentBuilder,
-    root_path: &Path,
+    root_location: &OriginLocation,
     release: &dyn ReleaseReader,
     component: &str,
 ) -> Result<()> {
     info!("Scanning sources");
 
     let entry = release.sources_entry(component)?;
-    let mut reader = entry_reader(release, &entry).await?;
+    let mut reader = entry_reader(release, &entry, entry.compression).await?;
     while let Some(paragraph) = reader.read_paragraph().await? {
         let source = DebianSourceControlFile::from(paragraph);
         let package = source
@@ -197,9 +204,9 @@ async fn scan_dist_sources(
 
         builder.add_dsc(OriginDsc {
             package,
-            dsc_path: root_path
-                .join(source.required_field_str("Directory")?)
-                .join(&dsc.name),
+            dsc_location: root_location
+                .join(source.required_field_str("Directory")?)?
+                .join(&dsc.name)?,
             files,
             aptly_hash: aptly_hash_builder.finish(),
         });
@@ -208,16 +215,14 @@ async fn scan_dist_sources(
     Ok(())
 }
 
-#[tracing::instrument]
-async fn scan_dist(root_path: &Path, dist: &str) -> Result<OriginContent> {
+#[tracing::instrument(fields(root_url = root_url.as_str()), skip(root_url))]
+async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContent> {
+    let root_location = OriginLocation::Url(root_url.clone());
+
     let mut builder = OriginContentBuilder::new();
 
-    let root = FilesystemRepositoryReader::new(root_path);
-    let mut release = root.release_reader(dist).await?;
-
-    // Don't use compression, because this is running off the local disk anyway
-    // & it simplifies some of the code.
-    release.set_preferred_compression(Compression::None);
+    let root = HttpRepositoryClient::new(root_url.clone())?;
+    let release = root.release_reader(dist).await?;
 
     let architectures = release
         .release_file()
@@ -230,10 +235,10 @@ async fn scan_dist(root_path: &Path, dist: &str) -> Result<OriginContent> {
         .ok_or_else(|| eyre!("Release file has no components"))?
     {
         for arch in &architectures {
-            scan_dist_packages(&mut builder, root_path, &*release, component, arch).await?;
+            scan_dist_packages(&mut builder, &root_location, &*release, component, arch).await?;
         }
 
-        scan_dist_sources(&mut builder, root_path, &*release, component).await?;
+        scan_dist_sources(&mut builder, &root_location, &*release, component).await?;
     }
 
     Ok(builder.build())
@@ -340,12 +345,12 @@ impl Syncer for SourceSyncer {
 
 #[tracing::instrument(skip_all)]
 pub async fn sync(
-    root_path: &Path,
+    root_url: &Url,
     dist: &str,
     aptly: AptlyRest,
     aptly_content: AptlyContent,
 ) -> Result<SyncActions> {
-    let origin_content = scan_dist(root_path, dist).await?;
+    let origin_content = scan_dist(root_url, dist).await?;
     sync2aptly::sync(
         origin_content,
         aptly,
