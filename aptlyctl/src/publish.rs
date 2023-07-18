@@ -35,13 +35,14 @@ fn parse_source(s: &str) -> Result<publish::Source, Box<dyn std::error::Error + 
         })
     }
 }
+
 #[derive(Parser, Debug)]
 pub struct PublishCreateOpts {
     kind: SourceKind,
     prefix: String,
     #[clap(value_parser = parse_source)]
     sources: Vec<publish::Source>,
-    #[clap(long, name = "architecture")]
+    #[clap(long = "architecture")]
     architectures: Vec<String>,
     #[clap(long)]
     distribution: Option<String>,
