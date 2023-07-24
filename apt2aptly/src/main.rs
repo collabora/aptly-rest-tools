@@ -1,9 +1,15 @@
+use std::collections::HashMap;
+
 use aptly_rest::{api::snapshots::DeleteOptions, AptlyRest, AptlyRestError};
-use clap::Parser;
-use color_eyre::{eyre::bail, Result};
+use clap::{builder::ArgPredicate, Parser};
+use color_eyre::{
+    eyre::{bail, Context},
+    Result,
+};
 use http::StatusCode;
+use leon::Template;
 use sync2aptly::{AptlyContent, UploadOptions};
-use tracing::{info, metadata::LevelFilter};
+use tracing::{info, metadata::LevelFilter, warn};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
 use url::Url;
@@ -21,15 +27,22 @@ struct Opts {
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]
     api_token: Option<String>,
-    /// Repo in aptly
-    aptly_repo: String,
+    /// Template to use as the aptly repo (use {component} to access the current
+    /// component)
+    aptly_repo_template: String,
     /// Root URL of apt repository
     apt_root: Url,
     /// Apt repository distribution
     dist: String,
-    /// Import the given apt snapshot and create a new one with the same name
-    #[clap(long)]
-    snapshot: Option<String>,
+    /// Import the given apt snapshot and create one in aptly following
+    /// --aptly-snapshot-template
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "aptly_snapshot_template"))]
+    apt_snapshot: Option<String>,
+    /// Template to use for creating aptly snapshots (use {component} and
+    /// {apt-snapshot} to access the current component and apt snapshot name,
+    /// respectively)
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "apt_snapshot"))]
+    aptly_snapshot_template: Option<String>,
     /// If a snapshot already exists with the name, delete it.
     #[clap(long)]
     delete_existing_snapshot: bool,
@@ -39,6 +52,14 @@ struct Opts {
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
+}
+
+fn parse_component_template(s: &str) -> Result<Template<'_>> {
+    match Template::parse(s) {
+        Ok(t) if t.has_key("component") => Ok(t),
+        Ok(_) => bail!("Template is missing '{{component}}'"),
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn is_error_not_found(e: &AptlyRestError) -> bool {
@@ -85,41 +106,69 @@ async fn main() -> Result<()> {
         AptlyRest::new(opts.api_url)
     };
 
-    let dist = if let Some(snapshot) = &opts.snapshot {
-        if opts.delete_existing_snapshot {
-            if opts.dry_run {
-                if snapshot_exists(&aptly, snapshot).await? {
-                    info!("Would delete previous snapshot {snapshot}");
-                }
-            } else if snapshot_delete(&aptly, snapshot).await? {
-                info!("Deleted previous snapshot {snapshot}");
-            }
-        } else if snapshot_exists(&aptly, snapshot).await? {
-            bail!("Snapshot {snapshot} already exists");
-        }
-
+    let dist = if let Some(snapshot) = &opts.apt_snapshot {
         format!("{}/snapshots/{}", opts.dist, snapshot)
     } else {
         opts.dist.clone()
     };
 
-    let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo.clone()).await?;
-    let actions = apt2aptly::sync(&opts.apt_root, &dist, aptly.clone(), aptly_contents).await?;
-    if !opts.dry_run {
-        actions
-            .apply(
-                "apt2aptly",
-                &UploadOptions {
-                    max_parallel: opts.max_parallel,
-                },
-            )
-            .await?;
+    let aptly_repo_template = parse_component_template(&opts.aptly_repo_template)
+        .wrap_err("Failed to parse aptly repo template")?;
+    let aptly_snapshot_template = opts
+        .aptly_snapshot_template
+        .as_deref()
+        .map(parse_component_template)
+        .transpose()
+        .wrap_err("Failed to parse aptly snapshot template")?;
 
-        if let Some(snapshot) = &opts.snapshot {
-            aptly
-                .repo(&opts.aptly_repo)
-                .snapshot(snapshot, &Default::default())
+    for (component, origin_content) in apt2aptly::scan_dist(&opts.apt_root, &dist).await? {
+        let aptly_repo = aptly_repo_template
+            .render(&HashMap::from([("component", &component)]))
+            .wrap_err("Failed to render aptly repo template")?;
+        let aptly_snapshot = aptly_snapshot_template
+            .as_ref()
+            .map(|t| {
+                t.render(&HashMap::from([
+                    ("component", &component),
+                    ("apt-snapshot", opts.apt_snapshot.as_ref().unwrap()),
+                ]))
+            })
+            .transpose()
+            .wrap_err("Failed to render aptly snapshot template")?;
+        let aptly_contents = AptlyContent::new_from_aptly(&aptly, aptly_repo.clone()).await?;
+
+        let actions =
+            apt2aptly::sync_component(origin_content, aptly.clone(), aptly_contents).await?;
+        if !opts.dry_run {
+            actions
+                .apply(
+                    "apt2aptly",
+                    &UploadOptions {
+                        max_parallel: opts.max_parallel,
+                    },
+                )
                 .await?;
+
+            if let Some(aptly_snapshot) = aptly_snapshot {
+                if opts.delete_existing_snapshot {
+                    if opts.dry_run {
+                        if snapshot_exists(&aptly, &aptly_snapshot).await? {
+                            info!("Would delete previous snapshot {aptly_snapshot}");
+                            continue;
+                        }
+                    } else if snapshot_delete(&aptly, &aptly_snapshot).await? {
+                        info!("Deleted previous snapshot {aptly_snapshot}");
+                    }
+                } else if snapshot_exists(&aptly, &aptly_snapshot).await? {
+                    warn!("Snapshot {aptly_snapshot} already exists, skipping...");
+                    continue;
+                }
+
+                aptly
+                    .repo(&aptly_repo)
+                    .snapshot(&aptly_snapshot, &Default::default())
+                    .await?;
+            }
         }
     }
 

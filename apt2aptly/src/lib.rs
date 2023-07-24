@@ -215,11 +215,13 @@ async fn scan_dist_sources(
     Ok(())
 }
 
+pub type OriginContentByComponent = HashMap<String, OriginContent>;
+
 #[tracing::instrument(fields(root_url = root_url.as_str()), skip(root_url))]
-async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContent> {
+pub async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContentByComponent> {
     let root_location = OriginLocation::Url(root_url.clone());
 
-    let mut builder = OriginContentBuilder::new();
+    let mut contents = OriginContentByComponent::new();
 
     let root = HttpRepositoryClient::new(root_url.clone())?;
     let release = root.release_reader(dist).await?;
@@ -234,14 +236,18 @@ async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContent> {
         .components()
         .ok_or_else(|| eyre!("Release file has no components"))?
     {
+        let mut builder = OriginContentBuilder::new();
+
         for arch in &architectures {
             scan_dist_packages(&mut builder, &root_location, &*release, component, arch).await?;
         }
 
         scan_dist_sources(&mut builder, &root_location, &*release, component).await?;
+
+        contents.insert(component.to_owned(), builder.build());
     }
 
-    Ok(builder.build())
+    Ok(contents)
 }
 
 pub struct BinarySyncer;
@@ -344,13 +350,11 @@ impl Syncer for SourceSyncer {
 }
 
 #[tracing::instrument(skip_all)]
-pub async fn sync(
-    root_url: &Url,
-    dist: &str,
+pub async fn sync_component(
+    origin_content: OriginContent,
     aptly: AptlyRest,
     aptly_content: AptlyContent,
 ) -> Result<SyncActions> {
-    let origin_content = scan_dist(root_url, dist).await?;
     sync2aptly::sync(
         origin_content,
         aptly,
