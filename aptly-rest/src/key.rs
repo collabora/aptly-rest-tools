@@ -1,7 +1,41 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, hash::Hasher, str::FromStr};
 
 use debian_packaging::package_version::PackageVersion;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+
+#[derive(Debug)]
+pub struct AptlyHashFile<'s> {
+    pub basename: &'s str,
+    pub size: u64,
+    pub md5: &'s str,
+    pub sha1: &'s str,
+    pub sha256: &'s str,
+}
+
+#[derive(Default)]
+pub struct AptlyHashBuilder {
+    hasher: fnv::FnvHasher,
+}
+
+impl AptlyHashBuilder {
+    pub fn add_file(&mut self, file: &AptlyHashFile<'_>) {
+        assert!(!file.basename.contains('/'));
+        self.hasher.write(file.basename.as_bytes());
+        self.hasher.write(&file.size.to_be_bytes());
+        self.hasher.write(file.md5.as_bytes());
+        self.hasher.write(file.sha1.as_bytes());
+        self.hasher.write(file.sha256.as_bytes());
+    }
+
+    pub fn file(mut self, file: &AptlyHashFile<'_>) -> Self {
+        self.add_file(file);
+        self
+    }
+
+    pub fn finish(self) -> String {
+        format!("{:x}", self.hasher.finish())
+    }
+}
 
 #[derive(
     Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, DeserializeFromStr, SerializeDisplay,

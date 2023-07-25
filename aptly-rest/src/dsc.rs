@@ -1,6 +1,5 @@
 use std::{
     collections::BTreeMap,
-    hash::Hasher,
     io::{BufRead, Cursor},
     path::{Path, PathBuf},
 };
@@ -13,7 +12,7 @@ use debian_packaging::{
 };
 use tokio::{fs::File, io::AsyncReadExt};
 
-use crate::key::AptlyKey;
+use crate::key::{AptlyHashBuilder, AptlyHashFile, AptlyKey};
 
 pub struct Dsc {
     dsc: DebianSourceControlFile<'static>,
@@ -212,23 +211,23 @@ impl TryFrom<&Dsc> for AptlyKey {
     type Error = DscError;
 
     fn try_from(dsc: &Dsc) -> Result<Self, Self::Error> {
-        let mut hasher = fnv::FnvHasher::default();
+        let mut builder = AptlyHashBuilder::default();
 
         for file in dsc.files()? {
-            hasher.write(file.name.as_bytes());
-            hasher.write(&file.size.to_be_bytes());
-            hasher.write(file.md5.as_bytes());
-            hasher.write(file.sha1.as_bytes());
-            hasher.write(file.sha256.as_bytes());
+            builder.add_file(&AptlyHashFile {
+                basename: &file.name,
+                size: file.size,
+                md5: &file.md5,
+                sha1: &file.sha1,
+                sha256: &file.sha256,
+            });
         }
-
-        let hash = format!("{:x}", hasher.finish());
 
         Ok(AptlyKey::new(
             "source".to_string(),
             dsc.source()?.to_string(),
             dsc.version()?,
-            hash,
+            builder.finish(),
         ))
     }
 }
