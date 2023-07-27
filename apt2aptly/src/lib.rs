@@ -16,10 +16,9 @@ use debian_packaging::{
     },
 };
 use futures::io::{AsyncBufRead, BufReader as AsyncBufReader};
-use std::collections::HashMap;
 use sync2aptly::{
-    LazyVersion, OriginContent, OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation,
-    PackageName,
+    AptlyContent, LazyVersion, OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation,
+    PackageName, SyncActions,
 };
 use tracing::{info, info_span, warn};
 use url::Url;
@@ -27,88 +26,14 @@ use url::Url;
 use aptly_rest::{
     dsc::DscFile,
     key::{AptlyHashBuilder, AptlyHashFile},
+    AptlyRest,
 };
-
-#[tracing::instrument(skip_all)]
-async fn entry_reader(
-    release: &dyn ReleaseReader,
-    entry: &ReleaseFileEntry<'_>,
-    compression: Compression,
-) -> Result<ControlParagraphAsyncReader<impl AsyncBufRead>> {
-    Ok(ControlParagraphAsyncReader::new(AsyncBufReader::new(
-        release
-            .get_path_decoded_with_digest_verification(
-                entry.path,
-                compression,
-                entry.size,
-                entry.digest.clone(),
-            )
-            .await?,
-    )))
-}
 
 #[tracing::instrument]
 fn basename_or_error(path: &str) -> Result<&str> {
     path.split('/')
         .last()
         .ok_or_else(|| eyre!("Bad filename {path}"))
-}
-
-#[tracing::instrument(skip(builder, root_location, release))]
-async fn scan_dist_packages(
-    builder: &mut OriginContentBuilder,
-    root_location: &OriginLocation,
-    release: &dyn ReleaseReader,
-    component: &str,
-    arch: &str,
-) -> Result<()> {
-    info!("Scanning packages");
-
-    let entry = match release.packages_entry(component, arch, false) {
-        Ok(entry) => entry,
-        Err(DebianError::RepositoryReadPackagesIndicesEntryNotFound) => {
-            info!("Skipping missing entry");
-            return Ok(());
-        }
-        Err(err) => return Err(err.into()),
-    };
-
-    let mut reader = entry_reader(release, &entry, entry.compression).await?;
-    while let Some(paragraph) = reader.read_paragraph().await? {
-        let bin = BinaryPackageControlFile::from(paragraph);
-        let package: PackageName = bin.package()?.into();
-
-        let span = info_span!("scan_dist_packages:package", ?package);
-        let _enter = span.enter();
-
-        let filename = bin.required_field_str("Filename")?;
-
-        let from_source = bin
-            .source()
-            .map(|s| s.to_owned().into())
-            .unwrap_or_else(|| package.clone());
-
-        let aptly_hash = AptlyHashBuilder::default()
-            .file(&AptlyHashFile {
-                basename: basename_or_error(filename)?,
-                size: bin.size().ok_or_else(|| eyre!("Missing Size field"))??,
-                md5: &bin.deb_digest(ChecksumType::Md5)?.digest_hex(),
-                sha1: &bin.deb_digest(ChecksumType::Sha1)?.digest_hex(),
-                sha256: &bin.deb_digest(ChecksumType::Sha256)?.digest_hex(),
-            })
-            .finish();
-
-        builder.add_deb(OriginDeb {
-            package,
-            version: LazyVersion::with_value(bin.version()?),
-            architecture: bin.architecture()?.to_owned(),
-            location: root_location.join(filename)?,
-            from_source,
-            aptly_hash,
-        });
-    }
-
-    Ok(())
 }
 
 #[tracing::instrument(skip(source))]
@@ -171,87 +96,188 @@ fn find_dsc_file(files: &[DscFile]) -> Result<&DscFile> {
     Ok(dsc_files[0])
 }
 
-#[tracing::instrument(skip(builder, root_location, release))]
-async fn scan_dist_sources(
-    builder: &mut OriginContentBuilder,
-    root_location: &OriginLocation,
-    release: &dyn ReleaseReader,
-    component: &str,
-) -> Result<()> {
-    info!("Scanning sources");
+pub struct DistScanner {
+    root_location: OriginLocation,
+    release: Box<dyn ReleaseReader>,
+    components: Vec<String>,
+    architectures: Vec<String>,
+}
 
-    let entry = release.sources_entry(component)?;
-    let mut reader = entry_reader(release, &entry, entry.compression).await?;
-    while let Some(paragraph) = reader.read_paragraph().await? {
-        let source = DebianSourceControlFile::from(paragraph);
-        let package = source
-            .source()
-            .or_else(|_| source.required_field_str("Package"))
-            .map_err(|_| eyre!("Missing Source/Package field"))?
-            .into();
+impl DistScanner {
+    #[tracing::instrument(fields(root_url = root_url.as_str()), skip(root_url))]
+    pub async fn new(root_url: &Url, dist: &str) -> Result<Self> {
+        let root_location = OriginLocation::Url(root_url.clone());
 
-        let span = info_span!("scan_dist_sources:package", ?package);
-        let _enter = span.enter();
+        let root = HttpRepositoryClient::new(root_url.clone())?;
+        let release = root.release_reader(dist).await?;
 
-        let files = collect_source_files(&source)?;
-        let dsc = find_dsc_file(&files)?;
+        let architectures = release
+            .release_file()
+            .architectures()
+            .ok_or_else(|| eyre!("Release file has no architectures"))?
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let components = release
+            .release_file()
+            .components()
+            .ok_or_else(|| eyre!("Release file has no components"))?
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
 
-        let mut aptly_hash_builder = AptlyHashBuilder::default();
-        for file in &files {
-            aptly_hash_builder.add_file(&AptlyHashFile {
-                basename: &file.name,
-                size: file.size,
-                md5: &file.md5,
-                sha1: &file.sha1,
-                sha256: &file.sha256,
+        Ok(Self {
+            root_location,
+            release,
+            architectures,
+            components,
+        })
+    }
+
+    pub fn components(&self) -> &[String] {
+        &self.components
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn entry_reader(
+        &self,
+        entry: &ReleaseFileEntry<'_>,
+        compression: Compression,
+    ) -> Result<ControlParagraphAsyncReader<impl AsyncBufRead>> {
+        Ok(ControlParagraphAsyncReader::new(AsyncBufReader::new(
+            self.release
+                .get_path_decoded_with_digest_verification(
+                    entry.path,
+                    compression,
+                    entry.size,
+                    entry.digest.clone(),
+                )
+                .await?,
+        )))
+    }
+
+    #[tracing::instrument(skip(self, builder, component))]
+    async fn scan_packages(
+        &self,
+        builder: &mut OriginContentBuilder,
+        component: &str,
+        arch: &str,
+    ) -> Result<()> {
+        info!("Scanning packages");
+
+        let entry = match self.release.packages_entry(component, arch, false) {
+            Ok(entry) => entry,
+            Err(DebianError::RepositoryReadPackagesIndicesEntryNotFound) => {
+                info!("Skipping missing entry");
+                return Ok(());
+            }
+            Err(err) => return Err(err.into()),
+        };
+
+        let mut reader = self.entry_reader(&entry, entry.compression).await?;
+        while let Some(paragraph) = reader.read_paragraph().await? {
+            let bin = BinaryPackageControlFile::from(paragraph);
+            let package: PackageName = bin.package()?.into();
+
+            let span = info_span!("scan_packages:package", ?package);
+            let _enter = span.enter();
+
+            let filename = bin.required_field_str("Filename")?;
+
+            let from_source = bin
+                .source()
+                .map(|s| s.to_owned().into())
+                .unwrap_or_else(|| package.clone());
+
+            let aptly_hash = AptlyHashBuilder::default()
+                .file(&AptlyHashFile {
+                    basename: basename_or_error(filename)?,
+                    size: bin.size().ok_or_else(|| eyre!("Missing Size field"))??,
+                    md5: &bin.deb_digest(ChecksumType::Md5)?.digest_hex(),
+                    sha1: &bin.deb_digest(ChecksumType::Sha1)?.digest_hex(),
+                    sha256: &bin.deb_digest(ChecksumType::Sha256)?.digest_hex(),
+                })
+                .finish();
+
+            builder.add_deb(OriginDeb {
+                package,
+                version: LazyVersion::with_value(bin.version()?),
+                architecture: bin.architecture()?.to_owned(),
+                location: self.root_location.join(filename)?,
+                from_source,
+                aptly_hash,
             });
         }
 
-        builder.add_dsc(OriginDsc {
-            package,
-            version: source.version()?,
-            dsc_location: root_location
-                .join(source.required_field_str("Directory")?)?
-                .join(&dsc.name)?,
-            files,
-            aptly_hash: aptly_hash_builder.finish(),
-        });
+        Ok(())
     }
 
-    Ok(())
-}
+    #[tracing::instrument(skip(self, builder, component))]
+    async fn scan_sources(
+        &self,
+        builder: &mut OriginContentBuilder,
+        component: &str,
+    ) -> Result<()> {
+        info!("Scanning sources");
 
-pub type OriginContentByComponent = HashMap<String, OriginContent>;
+        let entry = self.release.sources_entry(component)?;
+        let mut reader = self.entry_reader(&entry, entry.compression).await?;
+        while let Some(paragraph) = reader.read_paragraph().await? {
+            let source = DebianSourceControlFile::from(paragraph);
+            let package = source
+                .source()
+                .or_else(|_| source.required_field_str("Package"))
+                .map_err(|_| eyre!("Missing Source/Package field"))?
+                .into();
 
-#[tracing::instrument(fields(root_url = root_url.as_str()), skip(root_url))]
-pub async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContentByComponent> {
-    let root_location = OriginLocation::Url(root_url.clone());
+            let span = info_span!("scan_sources:package", ?package);
+            let _enter = span.enter();
 
-    let mut contents = OriginContentByComponent::new();
+            let files = collect_source_files(&source)?;
+            let dsc = find_dsc_file(&files)?;
 
-    let root = HttpRepositoryClient::new(root_url.clone())?;
-    let release = root.release_reader(dist).await?;
+            let mut aptly_hash_builder = AptlyHashBuilder::default();
+            for file in &files {
+                aptly_hash_builder.add_file(&AptlyHashFile {
+                    basename: &file.name,
+                    size: file.size,
+                    md5: &file.md5,
+                    sha1: &file.sha1,
+                    sha256: &file.sha256,
+                });
+            }
 
-    let architectures = release
-        .release_file()
-        .architectures()
-        .ok_or_else(|| eyre!("Release file has no architectures"))?
-        .collect::<Vec<_>>();
-    for component in release
-        .release_file()
-        .components()
-        .ok_or_else(|| eyre!("Release file has no components"))?
-    {
-        let mut builder = OriginContentBuilder::new();
-
-        for arch in &architectures {
-            scan_dist_packages(&mut builder, &root_location, &*release, component, arch).await?;
+            builder.add_dsc(OriginDsc {
+                package,
+                version: source.version()?,
+                dsc_location: self
+                    .root_location
+                    .join(source.required_field_str("Directory")?)?
+                    .join(&dsc.name)?,
+                files,
+                aptly_hash: aptly_hash_builder.finish(),
+            });
         }
 
-        scan_dist_sources(&mut builder, &root_location, &*release, component).await?;
-
-        contents.insert(component.to_owned(), builder.build());
+        Ok(())
     }
 
-    Ok(contents)
+    #[tracing::instrument(
+        fields(root_location = self.root_location.as_url().unwrap().as_str()),
+        skip(self, aptly, aptly_content))]
+    pub async fn sync_component(
+        &self,
+        component: &str,
+        aptly: AptlyRest,
+        aptly_content: AptlyContent,
+    ) -> Result<SyncActions> {
+        let mut builder = OriginContentBuilder::new();
+
+        for arch in &self.architectures {
+            self.scan_packages(&mut builder, component, arch).await?;
+        }
+
+        self.scan_sources(&mut builder, component).await?;
+
+        let origin_content = builder.build();
+        sync2aptly::sync(origin_content, aptly, aptly_content).await
+    }
 }

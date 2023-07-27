@@ -1,4 +1,9 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+};
 
 use aptly_rest::{api::snapshots::DeleteOptions, AptlyRest, AptlyRestError};
 use clap::{builder::ArgPredicate, Parser};
@@ -34,14 +39,14 @@ struct Opts {
     apt_root: Url,
     /// Apt repository distribution
     dist: String,
-    /// Import the given apt snapshot and create one in aptly following
-    /// --aptly-snapshot-template
+    /// Import the apt snapshots in the given file and created corresponding
+    /// ones in aptly following --aptly-snapshot-template
     #[clap(long, requires_if(ArgPredicate::IsPresent, "aptly_snapshot_template"))]
-    apt_snapshot: Option<String>,
+    apt_snapshots: Option<PathBuf>,
     /// Template to use for creating aptly snapshots (use {component} and
     /// {apt-snapshot} to access the current component and apt snapshot name,
     /// respectively)
-    #[clap(long, requires_if(ArgPredicate::IsPresent, "apt_snapshot"))]
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "apt_snapshots"))]
     aptly_snapshot_template: Option<String>,
     /// If a snapshot already exists with the name, delete it.
     #[clap(long)]
@@ -54,12 +59,25 @@ struct Opts {
     dry_run: bool,
 }
 
+const TEMPLATE_VAR_COMPONENT: &str = "component";
+const TEMPLATE_VAR_APT_SNAPSHOT: &str = "apt-snapshot";
+
 fn parse_component_template(s: &str) -> Result<Template<'_>> {
     match Template::parse(s) {
-        Ok(t) if t.has_key("component") => Ok(t),
-        Ok(_) => bail!("Template is missing '{{component}}'"),
+        Ok(t) if t.has_key(TEMPLATE_VAR_COMPONENT) => Ok(t),
+        Ok(_) => bail!("Template is missing '{{{TEMPLATE_VAR_COMPONENT}}}'"),
         Err(e) => Err(e.into()),
     }
+}
+
+fn parse_snapshot_template(s: &str) -> Result<Template<'_>> {
+    parse_component_template(s).and_then(|t| {
+        if t.has_key(TEMPLATE_VAR_APT_SNAPSHOT) {
+            Ok(t)
+        } else {
+            bail!("Template is missing '{{{TEMPLATE_VAR_APT_SNAPSHOT}}}'")
+        }
+    })
 }
 
 fn is_error_not_found(e: &AptlyRestError) -> bool {
@@ -70,6 +88,21 @@ fn is_error_not_found(e: &AptlyRestError) -> bool {
     }
 
     false
+}
+
+fn parse_snapshots_list(path: &Path) -> Result<Vec<String>> {
+    let file = File::open(path)?;
+    let mut lines = vec![];
+    for line in BufReader::new(file).lines() {
+        let line = line?;
+        if line.is_empty() {
+            continue;
+        }
+
+        lines.push(line);
+    }
+
+    Ok(lines)
 }
 
 async fn snapshot_exists(aptly: &AptlyRest, snapshot: &str) -> Result<bool> {
@@ -92,52 +125,72 @@ async fn snapshot_delete(aptly: &AptlyRest, snapshot: &str) -> Result<bool> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(ErrorLayer::default())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
-        .init();
-    color_eyre::install().unwrap();
-    let opts = Opts::parse();
-    let aptly = if let Some(token) = opts.api_token {
-        AptlyRest::new_with_token(opts.api_url, &token)?
-    } else {
-        AptlyRest::new(opts.api_url)
-    };
+enum AptDist<'s, 't> {
+    Dist(&'s str),
+    Snapshot {
+        dist: &'s str,
+        snapshot: &'s str,
+        template: &'s Template<'t>,
+    },
+}
 
-    let dist = if let Some(snapshot) = &opts.apt_snapshot {
-        format!("{}/snapshots/{}", opts.dist, snapshot)
-    } else {
-        opts.dist.clone()
-    };
+impl AptDist<'_, '_> {
+    fn path(&self) -> String {
+        match self {
+            AptDist::Dist(dist) => (*dist).to_owned(),
+            AptDist::Snapshot { dist, snapshot, .. } => format!("{dist}/snapshots/{snapshot}"),
+        }
+    }
+}
 
-    let aptly_repo_template = parse_component_template(&opts.aptly_repo_template)
-        .wrap_err("Failed to parse aptly repo template")?;
-    let aptly_snapshot_template = opts
-        .aptly_snapshot_template
-        .as_deref()
-        .map(parse_component_template)
-        .transpose()
-        .wrap_err("Failed to parse aptly snapshot template")?;
+struct AptRepo<'s, 't> {
+    root: &'s Url,
+    dist: AptDist<'s, 't>,
+}
 
-    for (component, origin_content) in apt2aptly::scan_dist(&opts.apt_root, &dist).await? {
+async fn sync_dist(
+    aptly: &AptlyRest,
+    aptly_repo_template: &Template<'_>,
+    apt_repo: &AptRepo<'_, '_>,
+    opts: &Opts,
+) -> Result<()> {
+    let scanner = apt2aptly::DistScanner::new(apt_repo.root, &apt_repo.dist.path()).await?;
+    for component in scanner.components() {
         let aptly_repo = aptly_repo_template
-            .render(&HashMap::from([("component", &component)]))
+            .render(&HashMap::from([(TEMPLATE_VAR_COMPONENT, &component)]))
             .wrap_err("Failed to render aptly repo template")?;
-        let aptly_snapshot = aptly_snapshot_template
-            .as_ref()
-            .map(|t| {
-                t.render(&HashMap::from([
-                    ("component", &component),
-                    ("apt-snapshot", opts.apt_snapshot.as_ref().unwrap()),
-                ]))
-            })
-            .transpose()
-            .wrap_err("Failed to render aptly snapshot template")?;
-        let aptly_contents = AptlyContent::new_from_aptly(&aptly, aptly_repo.clone()).await?;
+        let aptly_snapshot = if let AptDist::Snapshot {
+            snapshot, template, ..
+        } = &apt_repo.dist
+        {
+            Some(template.render(&HashMap::from([
+                (TEMPLATE_VAR_COMPONENT, component.as_str()),
+                (TEMPLATE_VAR_APT_SNAPSHOT, snapshot),
+            ]))?)
+        } else {
+            None
+        };
 
-        let actions = sync2aptly::sync(origin_content, aptly.clone(), aptly_contents).await?;
+        if let Some(aptly_snapshot) = &aptly_snapshot {
+            if opts.delete_existing_snapshot {
+                if opts.dry_run {
+                    if snapshot_exists(aptly, aptly_snapshot).await? {
+                        info!("Would delete previous snapshot {aptly_snapshot}");
+                        continue;
+                    }
+                } else if snapshot_delete(aptly, aptly_snapshot).await? {
+                    info!("Deleted previous snapshot {aptly_snapshot}");
+                }
+            } else if snapshot_exists(aptly, aptly_snapshot).await? {
+                warn!("Snapshot {aptly_snapshot} already exists, skipping...");
+                continue;
+            }
+        }
+
+        let aptly_contents = AptlyContent::new_from_aptly(aptly, aptly_repo.clone()).await?;
+        let actions = scanner
+            .sync_component(component, aptly.clone(), aptly_contents)
+            .await?;
         if !opts.dry_run {
             actions
                 .apply(
@@ -149,20 +202,6 @@ async fn main() -> Result<()> {
                 .await?;
 
             if let Some(aptly_snapshot) = aptly_snapshot {
-                if opts.delete_existing_snapshot {
-                    if opts.dry_run {
-                        if snapshot_exists(&aptly, &aptly_snapshot).await? {
-                            info!("Would delete previous snapshot {aptly_snapshot}");
-                            continue;
-                        }
-                    } else if snapshot_delete(&aptly, &aptly_snapshot).await? {
-                        info!("Deleted previous snapshot {aptly_snapshot}");
-                    }
-                } else if snapshot_exists(&aptly, &aptly_snapshot).await? {
-                    warn!("Snapshot {aptly_snapshot} already exists, skipping...");
-                    continue;
-                }
-
                 aptly
                     .repo(&aptly_repo)
                     .snapshot(&aptly_snapshot, &Default::default())
@@ -170,6 +209,62 @@ async fn main() -> Result<()> {
             }
         }
     }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(ErrorLayer::default())
+        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+        .init();
+    color_eyre::install().unwrap();
+    let opts = Opts::parse();
+    let aptly = if let Some(token) = &opts.api_token {
+        AptlyRest::new_with_token(opts.api_url.clone(), token)?
+    } else {
+        AptlyRest::new(opts.api_url.clone())
+    };
+
+    let aptly_repo_template = parse_component_template(&opts.aptly_repo_template)
+        .wrap_err("Failed to parse aptly repo template")?;
+    let aptly_snapshot_template = opts
+        .aptly_snapshot_template
+        .as_deref()
+        .map(parse_snapshot_template)
+        .transpose()
+        .wrap_err("Failed to parse aptly snapshot template")?;
+
+    if let Some(snapshots_path) = &opts.apt_snapshots {
+        for snapshot in parse_snapshots_list(snapshots_path)? {
+            sync_dist(
+                &aptly,
+                &aptly_repo_template,
+                &AptRepo {
+                    root: &opts.apt_root,
+                    dist: AptDist::Snapshot {
+                        dist: &opts.dist,
+                        snapshot: &snapshot,
+                        template: aptly_snapshot_template.as_ref().unwrap(),
+                    },
+                },
+                &opts,
+            )
+            .await?;
+        }
+    }
+
+    sync_dist(
+        &aptly,
+        &aptly_repo_template,
+        &AptRepo {
+            root: &opts.apt_root,
+            dist: AptDist::Dist(&opts.dist),
+        },
+        &opts,
+    )
+    .await?;
 
     Ok(())
 }
