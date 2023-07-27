@@ -18,8 +18,8 @@ use debian_packaging::{
 use futures::io::{AsyncBufRead, BufReader as AsyncBufReader};
 use std::collections::HashMap;
 use sync2aptly::{
-    AptlyContent, AptlyPackage, OriginContent, OriginContentBuilder, OriginDeb, OriginDsc,
-    OriginLocation, OriginPackage, OriginSource, PackageName, SyncActions, Syncer, Syncers,
+    LazyVersion, OriginContent, OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation,
+    PackageName,
 };
 use tracing::{info, info_span, warn};
 use url::Url;
@@ -27,7 +27,6 @@ use url::Url;
 use aptly_rest::{
     dsc::DscFile,
     key::{AptlyHashBuilder, AptlyHashFile},
-    AptlyRest,
 };
 
 #[tracing::instrument(skip_all)]
@@ -77,12 +76,17 @@ async fn scan_dist_packages(
     let mut reader = entry_reader(release, &entry, entry.compression).await?;
     while let Some(paragraph) = reader.read_paragraph().await? {
         let bin = BinaryPackageControlFile::from(paragraph);
-        let package = bin.package()?.into();
+        let package: PackageName = bin.package()?.into();
 
         let span = info_span!("scan_dist_packages:package", ?package);
         let _enter = span.enter();
 
         let filename = bin.required_field_str("Filename")?;
+
+        let from_source = bin
+            .source()
+            .map(|s| s.to_owned().into())
+            .unwrap_or_else(|| package.clone());
 
         let aptly_hash = AptlyHashBuilder::default()
             .file(&AptlyHashFile {
@@ -96,9 +100,10 @@ async fn scan_dist_packages(
 
         builder.add_deb(OriginDeb {
             package,
+            version: LazyVersion::with_value(bin.version()?),
             architecture: bin.architecture()?.to_owned(),
             location: root_location.join(filename)?,
-            from_source: None,
+            from_source,
             aptly_hash,
         });
     }
@@ -204,6 +209,7 @@ async fn scan_dist_sources(
 
         builder.add_dsc(OriginDsc {
             package,
+            version: source.version()?,
             dsc_location: root_location
                 .join(source.required_field_str("Directory")?)?
                 .join(&dsc.name)?,
@@ -248,122 +254,4 @@ pub async fn scan_dist(root_url: &Url, dist: &str) -> Result<OriginContentByComp
     }
 
     Ok(contents)
-}
-
-pub struct BinarySyncer;
-
-#[async_trait::async_trait]
-impl Syncer for BinarySyncer {
-    type Origin = OriginPackage;
-
-    #[tracing::instrument(skip_all)]
-    async fn add(
-        &self,
-        _name: &PackageName,
-        origin: &Self::Origin,
-        actions: &mut SyncActions,
-    ) -> Result<()> {
-        for deb in origin
-            .debs()
-            .iter()
-            .map(|d| (&d.aptly_hash, d))
-            .collect::<HashMap<_, _>>()
-            .values()
-        {
-            actions.add_deb(deb);
-        }
-        Ok(())
-    }
-
-    #[tracing::instrument(skip_all)]
-    async fn sync(
-        &self,
-        _name: &PackageName,
-        origin: &Self::Origin,
-        aptly: &AptlyPackage,
-        actions: &mut SyncActions,
-    ) -> Result<()> {
-        let mut origin_hashes: HashMap<_, _> = origin
-            .debs()
-            .iter()
-            .map(|d| (d.aptly_hash.as_ref(), d))
-            .collect();
-        for key in aptly.keys().cloned() {
-            if origin_hashes.remove(key.hash()).is_none() {
-                actions.remove_aptly(key);
-            }
-        }
-
-        for deb in origin_hashes.values() {
-            actions.add_deb(deb);
-        }
-
-        Ok(())
-    }
-}
-
-pub struct SourceSyncer;
-
-#[async_trait::async_trait]
-impl Syncer for SourceSyncer {
-    type Origin = OriginSource;
-
-    #[tracing::instrument(skip_all)]
-    async fn add(
-        &self,
-        _name: &PackageName,
-        origin: &Self::Origin,
-        actions: &mut SyncActions,
-    ) -> Result<()> {
-        for source in origin.sources() {
-            actions.add_dsc(source)?;
-        }
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip_all)]
-    async fn sync(
-        &self,
-        _name: &PackageName,
-        origin: &Self::Origin,
-        aptly: &AptlyPackage,
-        actions: &mut SyncActions,
-    ) -> Result<()> {
-        let mut origin_hashes: HashMap<_, _> = origin
-            .sources()
-            .iter()
-            .map(|d| (d.aptly_hash.as_ref(), d))
-            .collect();
-        for key in aptly.keys().cloned() {
-            if origin_hashes.remove(key.hash()).is_none() {
-                actions.remove_aptly(key);
-            }
-        }
-
-        for dsc in origin_hashes.values() {
-            actions.add_dsc(dsc)?;
-        }
-
-        Ok(())
-    }
-}
-
-#[tracing::instrument(skip_all)]
-pub async fn sync_component(
-    origin_content: OriginContent,
-    aptly: AptlyRest,
-    aptly_content: AptlyContent,
-) -> Result<SyncActions> {
-    sync2aptly::sync(
-        origin_content,
-        aptly,
-        aptly_content,
-        &mut Syncers {
-            binary_dep: BinarySyncer,
-            binary_indep: BinarySyncer,
-            source: SourceSyncer,
-        },
-    )
-    .await
 }

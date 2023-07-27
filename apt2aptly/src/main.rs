@@ -137,8 +137,7 @@ async fn main() -> Result<()> {
             .wrap_err("Failed to render aptly snapshot template")?;
         let aptly_contents = AptlyContent::new_from_aptly(&aptly, aptly_repo.clone()).await?;
 
-        let actions =
-            apt2aptly::sync_component(origin_content, aptly.clone(), aptly_contents).await?;
+        let actions = sync2aptly::sync(origin_content, aptly.clone(), aptly_contents).await?;
         if !opts.dry_run {
             actions
                 .apply(

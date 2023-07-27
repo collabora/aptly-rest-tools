@@ -6,6 +6,7 @@ use color_eyre::{
 use debian_packaging::package_version::PackageVersion;
 use futures::{stream::FuturesUnordered, Future, FutureExt, StreamExt};
 use http::StatusCode;
+use once_cell::sync::OnceCell;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -230,12 +231,51 @@ impl Display for OriginLocation {
     }
 }
 
+// Unfortunately, we can't easily rely on once_cell's Lazy here, because it
+// would end up with an &Result<...>, which can't be trivially handled as a
+// non-ref Result<...> without cloning...which we can't do, because ErrReport
+// isn't Clone.
+type LazyVersionFn = Box<dyn Fn() -> Result<PackageVersion> + Send + Sync>;
+
+pub struct LazyVersion {
+    version: OnceCell<PackageVersion>,
+    compute: Option<LazyVersionFn>,
+}
+
+impl LazyVersion {
+    pub fn new(compute: LazyVersionFn) -> Self {
+        Self {
+            version: OnceCell::new(),
+            compute: Some(compute),
+        }
+    }
+
+    pub fn with_value(version: PackageVersion) -> Self {
+        Self {
+            version: OnceCell::with_value(version),
+            compute: None,
+        }
+    }
+
+    pub fn get(&self) -> Result<&PackageVersion> {
+        self.version
+            .get_or_try_init(|| self.compute.as_ref().unwrap()())
+    }
+}
+
+impl std::fmt::Debug for LazyVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.version.fmt(f)
+    }
+}
+
 #[derive(Debug)]
 pub struct OriginDeb {
     pub package: PackageName,
+    pub version: LazyVersion,
     pub architecture: String,
     pub location: OriginLocation,
-    pub from_source: Option<(PackageName, PackageVersion)>,
+    pub from_source: PackageName,
     pub aptly_hash: String,
 }
 
@@ -258,11 +298,27 @@ impl OriginPackage {
     pub fn push(&mut self, deb: OriginDeb) {
         self.debs.push(deb)
     }
+
+    #[tracing::instrument]
+    pub fn newest(&self) -> Result<&OriginDeb> {
+        let mut n = self
+            .debs
+            .get(0)
+            .ok_or_else(|| eyre!("No debs in package"))?;
+        for deb in &self.debs[1..] {
+            if deb.version.get()? > n.version.get()? {
+                n = deb;
+            }
+        }
+
+        Ok(n)
+    }
 }
 
 #[derive(Debug)]
 pub struct OriginDsc {
     pub package: PackageName,
+    pub version: PackageVersion,
     pub dsc_location: OriginLocation,
     pub files: Vec<DscFile>,
     pub aptly_hash: String,
@@ -280,6 +336,14 @@ impl OriginSource {
 
     pub fn sources(&self) -> &[OriginDsc] {
         &self.sources
+    }
+
+    #[tracing::instrument]
+    pub fn newest(&self) -> Result<&OriginDsc> {
+        self.sources
+            .iter()
+            .max_by_key(|dsc| &dsc.version)
+            .ok_or_else(|| eyre!("No sources in package"))
     }
 }
 
@@ -332,7 +396,7 @@ impl OriginContentBuilder {
 }
 
 #[async_trait::async_trait]
-pub trait Syncer: Send {
+trait Syncer: Send {
     type Origin;
     // Packages only in the origin
     async fn add(
@@ -349,6 +413,209 @@ pub trait Syncer: Send {
         aptly: &AptlyPackage,
         actions: &mut SyncActions,
     ) -> Result<()>;
+}
+
+struct BinaryDepSyncer;
+
+#[async_trait::async_trait]
+impl Syncer for BinaryDepSyncer {
+    type Origin = OriginPackage;
+
+    #[tracing::instrument(skip_all)]
+    async fn add(
+        &self,
+        _name: &PackageName,
+        origin: &Self::Origin,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        let origin_newest = origin.newest()?;
+        actions.add_deb(origin_newest);
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn sync(
+        &self,
+        name: &PackageName,
+        origin: &Self::Origin,
+        aptly: &AptlyPackage,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        // Simple case just one package on both sides
+        let origin_newest = origin.newest()?;
+        let aptly_newest = aptly.newest()?;
+        if origin_newest.version.get()? < aptly_newest.version() {
+            warn!("{} older than {} in aptly", origin_newest, aptly_newest);
+        } else if origin_newest.aptly_hash != aptly_newest.hash() {
+            info!("== Changes for {} ==", name);
+            for key in aptly.keys().cloned() {
+                actions.remove_aptly(key);
+            }
+            actions.add_deb(origin_newest);
+        }
+        Ok(())
+    }
+}
+
+struct BinaryInDepSyncer;
+
+#[async_trait::async_trait]
+impl Syncer for BinaryInDepSyncer {
+    type Origin = OriginPackage;
+
+    #[tracing::instrument(skip_all)]
+    async fn add(
+        &self,
+        _name: &PackageName,
+        origin: &Self::Origin,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        // Only add the newest arch all package; Potential future update could be to add one deb
+        // for each *version*
+        let origin_newest = origin.newest()?;
+        actions.add_deb_with_options(
+            origin_newest,
+            &AddDebOptions {
+                match_existing: MatchPoolPackageBy::KeyOrFilename,
+            },
+        );
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn sync(
+        &self,
+        name: &PackageName,
+        origin: &Self::Origin,
+        aptly: &AptlyPackage,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        // Common case,  all arch all are from a single source package so what should be published
+        // is a package equal to a version of the newest source package version.
+        //
+        // cornercase; arch all package is provided by multiple source packages; e.g. during a
+        // transition.
+        //
+        // Only put newer stuff in aptly; but then build id's?
+        // sort per version
+        // aptly should have one arch all for each version
+        //
+        // sort by (source, version) => all package
+        //   for each (source, version) check for a matching package in aptly
+        //     -> common fast if all source packages are the same
+        //
+        //   if match not found check if source version is *newer* then all aptly version; if
+        //   so add it
+        //      -> common when doing a package update
+        //
+        //   if not fall back checking the exact version
+        //   get the exact version of the .deb as it may have an epoch which means it's newer
+        //     -> shortcut if aptly has no epoch and changes version matches?
+        //
+        info!("=== Changes for {} ===", name);
+        let mut keep_in_aptly = Vec::new();
+
+        let origin_by_version = origin.debs().iter().try_fold(
+            HashMap::new(),
+            |mut acc, d| -> Result<HashMap<(&PackageName, &PackageVersion), Vec<&OriginDeb>>> {
+                acc.entry((&d.from_source, d.version.get()?))
+                    .or_default()
+                    .push(d);
+                Ok(acc)
+            },
+        )?;
+
+        for ((source_name, version), debs) in origin_by_version.iter() {
+            info!(
+                "=== Changes for source {}, version {} ===",
+                source_name, version
+            );
+            // If there is a matching hash this version already available in aptly so no further
+            // action needed
+            if let Some(found) = debs
+                .iter()
+                .find_map(|p| aptly.keys().find(|a| a.hash() == p.aptly_hash))
+            {
+                info!("Keeping {} as it matches a hash in OBS", found);
+                keep_in_aptly.push(found);
+                continue;
+            }
+
+            // Assuming all builds from the same source version will have the same version of the
+            // package
+            let deb_version = debs[0].version.get()?;
+            // If version is newer then everything in aptly add the package
+            if aptly.keys().all(|a| a.version() < deb_version) {
+                actions.add_deb_with_options(
+                    debs[0],
+                    &AddDebOptions {
+                        match_existing: MatchPoolPackageBy::KeyOrFilename,
+                    },
+                );
+                continue;
+            }
+
+            // If any of the aptly keys match the exact package version, then happyness?
+            if let Some(found) = aptly.keys().find(|a| a.version() == deb_version) {
+                info!("Keeping {} as it matches a version in OBS", found);
+                keep_in_aptly.push(found);
+            }
+        }
+
+        let origin_newest = &origin.newest()?.version.get()?;
+        for a in aptly.keys().filter(|key| !keep_in_aptly.contains(key)) {
+            if a.version() < origin_newest {
+                info!("Removing {}", a);
+                actions.remove_aptly(a.clone());
+            } else {
+                info!("Keeping {} as it was newer then anything in OBS", a);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+struct SourceSyncer;
+
+#[async_trait::async_trait]
+impl Syncer for SourceSyncer {
+    type Origin = OriginSource;
+
+    #[tracing::instrument(skip_all)]
+    async fn add(
+        &self,
+        _name: &PackageName,
+        origin: &Self::Origin,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        actions.add_dsc(origin.newest()?)?;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn sync(
+        &self,
+        _name: &PackageName,
+        origin: &Self::Origin,
+        aptly: &AptlyPackage,
+        actions: &mut SyncActions,
+    ) -> Result<()> {
+        // TODO let aptly keep all source version referred to by changes files? Though this would
+        // need to account for build suffixes in some way
+
+        // Simple case just one package on both sides
+        let d = &origin.newest()?;
+        let a = aptly.keys().next().unwrap();
+
+        if d.aptly_hash != a.hash() {
+            // TODO make sure version is upgraded
+            actions.remove_aptly(a.clone());
+            actions.add_dsc(d)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(
@@ -892,30 +1159,13 @@ where
     Ok(())
 }
 
-pub struct Syncers<BinaryDepSyncer, BinaryInDepSyncer, SourceSyncer>
-where
-    BinaryDepSyncer: Syncer<Origin = OriginPackage>,
-    BinaryInDepSyncer: Syncer<Origin = OriginPackage>,
-    SourceSyncer: Syncer<Origin = OriginSource>,
-{
-    pub binary_dep: BinaryDepSyncer,
-    pub binary_indep: BinaryInDepSyncer,
-    pub source: SourceSyncer,
-}
-
 /// Calculate what needs to be done to sync from origin repos to aptly
 #[tracing::instrument(skip_all)]
-pub async fn sync<BinaryDepSyncer, BinaryInDepSyncer, SourceSyncer>(
+pub async fn sync(
     origin_content: OriginContent,
     aptly: AptlyRest,
     aptly_content: AptlyContent,
-    syncers: &mut Syncers<BinaryDepSyncer, BinaryInDepSyncer, SourceSyncer>,
-) -> Result<SyncActions>
-where
-    BinaryDepSyncer: Syncer<Origin = OriginPackage>,
-    BinaryInDepSyncer: Syncer<Origin = OriginPackage>,
-    SourceSyncer: Syncer<Origin = OriginSource>,
-{
+) -> Result<SyncActions> {
     let mut actions = SyncActions::new(aptly, aptly_content.repo().to_owned());
     let architectures: HashSet<_> = origin_content
         .binary_arch
@@ -942,7 +1192,7 @@ where
         sync_packages(
             &mut origin_iter,
             &mut aptly_iter,
-            &mut syncers.binary_dep,
+            &mut BinaryDepSyncer,
             &mut actions,
         )
         .await?;
@@ -952,7 +1202,7 @@ where
     sync_packages(
         &mut origin_content.binary_indep.iter(),
         &mut aptly_content.binary_indep.iter(),
-        &mut syncers.binary_indep,
+        &mut BinaryInDepSyncer,
         &mut actions,
     )
     .await?;
@@ -961,7 +1211,7 @@ where
     sync_packages(
         &mut origin_content.sources.iter(),
         &mut aptly_content.sources.iter(),
-        &mut syncers.source,
+        &mut SourceSyncer,
         &mut actions,
     )
     .await?;

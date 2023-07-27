@@ -3608,6 +3608,7 @@ dependencies = [
  "debian-packaging",
  "futures",
  "http",
+ "once_cell",
  "reqwest",
  "serde",
  "tempfile",
