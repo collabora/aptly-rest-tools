@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::File,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -62,22 +62,30 @@ struct Opts {
 const TEMPLATE_VAR_COMPONENT: &str = "component";
 const TEMPLATE_VAR_APT_SNAPSHOT: &str = "apt-snapshot";
 
-fn parse_component_template(s: &str) -> Result<Template<'_>> {
-    match Template::parse(s) {
-        Ok(t) if t.has_key(TEMPLATE_VAR_COMPONENT) => Ok(t),
-        Ok(_) => bail!("Template is missing '{{{TEMPLATE_VAR_COMPONENT}}}'"),
-        Err(e) => Err(e.into()),
+fn check_template_keys(t: &Template<'_>, expected_keys: &[&str]) -> Result<()> {
+    let template_keys = t.keys().collect::<HashSet<_>>();
+    let expected_keys = expected_keys.iter().collect::<HashSet<_>>();
+
+    if let Some(key) = template_keys.difference(&expected_keys).next() {
+        bail!("Template is using unknown key '{{{key}}}'");
     }
+    if let Some(key) = expected_keys.difference(&template_keys).next() {
+        bail!("Template is missing key '{{{key}}}'");
+    }
+
+    Ok(())
+}
+
+fn parse_component_template(s: &str) -> Result<Template<'_>> {
+    let t = Template::parse(s)?;
+    check_template_keys(&t, &[TEMPLATE_VAR_COMPONENT])?;
+    Ok(t)
 }
 
 fn parse_snapshot_template(s: &str) -> Result<Template<'_>> {
-    parse_component_template(s).and_then(|t| {
-        if t.has_key(TEMPLATE_VAR_APT_SNAPSHOT) {
-            Ok(t)
-        } else {
-            bail!("Template is missing '{{{TEMPLATE_VAR_APT_SNAPSHOT}}}'")
-        }
-    })
+    let t = Template::parse(s)?;
+    check_template_keys(&t, &[TEMPLATE_VAR_COMPONENT, TEMPLATE_VAR_APT_SNAPSHOT])?;
+    Ok(t)
 }
 
 fn is_error_not_found(e: &AptlyRestError) -> bool {
