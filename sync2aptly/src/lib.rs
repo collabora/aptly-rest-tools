@@ -87,13 +87,7 @@ impl AptlyPackage {
     #[tracing::instrument]
     pub fn newest(&self) -> Result<&AptlyKey> {
         self.keys()
-            .reduce(|acc, key| {
-                if key.version() > acc.version() {
-                    key
-                } else {
-                    acc
-                }
-            })
+            .max_by_key(|key| key.version())
             .ok_or_else(|| eyre!("Aptly package without keys"))
     }
 }
