@@ -5,7 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use aptly_rest::{api::snapshots::DeleteOptions, AptlyRest, AptlyRestError};
+use aptly_rest::{
+    api::{publish, snapshots::DeleteOptions},
+    AptlyRest, AptlyRestError,
+};
 use clap::{builder::ArgPredicate, Parser};
 use color_eyre::{
     eyre::{bail, Context},
@@ -39,6 +42,12 @@ struct Opts {
     apt_root: Url,
     /// Apt repository distribution
     dist: String,
+    /// Publish the repo and snapshots to the given prefix.
+    #[clap(long = "publish-to")]
+    publish_prefix: Option<String>,
+    /// Use the given GPG key when publishing.
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
+    publish_gpg_key: Option<String>,
     /// Import the apt snapshots in the given file and created corresponding
     /// ones in aptly following --aptly-snapshot-template
     #[clap(long, requires_if(ArgPredicate::IsPresent, "aptly_snapshot_template"))]
@@ -51,6 +60,9 @@ struct Opts {
     /// If a snapshot already exists with the name, delete it.
     #[clap(long)]
     delete_existing_snapshot: bool,
+    /// If the snapshot is already published, delete it.
+    #[clap(long)]
+    delete_existing_snapshot_publish: bool,
     /// Maximum number of parallel uploads
     #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
     max_parallel: u8,
@@ -162,7 +174,11 @@ async fn sync_dist(
     apt_repo: &AptRepo<'_, '_>,
     opts: &Opts,
 ) -> Result<()> {
-    let scanner = apt2aptly::DistScanner::new(apt_repo.root, &apt_repo.dist.path()).await?;
+    let mut sources = vec![];
+
+    let dist_path = apt_repo.dist.path();
+    let scanner = apt2aptly::DistScanner::new(apt_repo.root, &dist_path).await?;
+
     for component in scanner.components() {
         let aptly_repo = aptly_repo_template
             .render(&HashMap::from([(TEMPLATE_VAR_COMPONENT, &component)]))
@@ -180,6 +196,11 @@ async fn sync_dist(
         };
 
         if let Some(aptly_snapshot) = &aptly_snapshot {
+            sources.push(publish::Source {
+                name: aptly_snapshot.clone(),
+                component: Some(component.clone()),
+            });
+
             if opts.delete_existing_snapshot {
                 if opts.dry_run {
                     if snapshot_exists(aptly, aptly_snapshot).await? {
@@ -193,6 +214,11 @@ async fn sync_dist(
                 warn!("Snapshot {aptly_snapshot} already exists, skipping...");
                 continue;
             }
+        } else {
+            sources.push(publish::Source {
+                name: aptly_repo.clone(),
+                component: Some(component.clone()),
+            });
         }
 
         let aptly_contents = AptlyContent::new_from_aptly(aptly, aptly_repo.clone()).await?;
@@ -215,6 +241,71 @@ async fn sync_dist(
                     .snapshot(&aptly_snapshot, &Default::default())
                     .await?;
             }
+        }
+    }
+
+    if let Some(publish_prefix) = &opts.publish_prefix {
+        let published = aptly.published().await?;
+        let existing_publish = published
+            .into_iter()
+            .any(|p| p.prefix() == publish_prefix && p.distribution() == dist_path);
+
+        if existing_publish {
+            if matches!(apt_repo.dist, AptDist::Snapshot { .. })
+                && opts.delete_existing_snapshot_publish
+            {
+                if opts.dry_run {
+                    info!(
+                        "Would delete previous published distribution {}/{}",
+                        publish_prefix, dist_path
+                    );
+                } else {
+                    aptly
+                        .publish_prefix(publish_prefix)
+                        .distribution(&dist_path)
+                        .delete(&publish::DeleteOptions { force: true })
+                        .await?;
+                    info!(
+                        "Deleted previous published distribution {}/{}",
+                        publish_prefix, dist_path
+                    );
+                }
+            } else {
+                warn!("Publish prefix {} already exists, skipping", publish_prefix);
+                return Ok(());
+            }
+        }
+
+        if opts.dry_run {
+            info!("Would publish to {}/{}", publish_prefix, dist_path);
+        } else {
+            let kind = match &apt_repo.dist {
+                AptDist::Dist(_) => publish::SourceKind::Local,
+                AptDist::Snapshot { .. } => publish::SourceKind::Snapshot,
+            };
+
+            let signing = if let Some(key) = &opts.publish_gpg_key {
+                publish::Signing::Enabled(publish::SigningOptions {
+                    gpg_key: Some(key.clone()),
+                    ..Default::default()
+                })
+            } else {
+                publish::Signing::Disabled
+            };
+
+            info!("Publishing to {}/{}...", publish_prefix, dist_path);
+            aptly
+                .publish_prefix(publish_prefix)
+                .publish(
+                    kind,
+                    &sources,
+                    &publish::PublishOptions {
+                        distribution: Some(dist_path),
+                        signing: Some(signing),
+                        ..Default::default()
+                    },
+                )
+                .await?;
         }
     }
 
