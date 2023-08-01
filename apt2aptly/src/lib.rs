@@ -261,7 +261,9 @@ impl DistScanner {
     }
 
     #[tracing::instrument(
-        fields(root_location = self.root_location.as_url().unwrap().as_str()),
+        fields(
+            root_location = self.root_location.as_url().unwrap().as_str(),
+            release = self.release.root_relative_path()),
         skip(self, aptly, aptly_content))]
     pub async fn sync_component(
         &self,
