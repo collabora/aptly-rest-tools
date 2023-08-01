@@ -339,6 +339,8 @@ async fn sync_dist(
                     &publish::PublishOptions {
                         distribution: Some(dist_path),
                         signing: Some(signing),
+                        skip_bz2: true,
+                        skip_contents: true,
                         ..Default::default()
                     },
                 )
