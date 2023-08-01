@@ -38,12 +38,12 @@ fn basename_or_error(path: &str) -> Result<&str> {
 
 #[tracing::instrument(skip(source))]
 fn collect_source_files(source: &DebianSourceControlFile<'_>) -> Result<Vec<DscFile>> {
-    let md5_entries = source.files()?.collect::<Result<Vec<_>, _>>()?;
-    let sha1_entries = source
+    let mut md5_entries = source.files()?.collect::<Result<Vec<_>, _>>()?;
+    let mut sha1_entries = source
         .checksums_sha1()
         .ok_or_else(|| eyre!("Missing Checksums-Sha1"))?
         .collect::<Result<Vec<_>, _>>()?;
-    let sha256_entries = source
+    let mut sha256_entries = source
         .checksums_sha256()
         .ok_or_else(|| eyre!("Missing Checksums-Sha256"))?
         .collect::<Result<Vec<_>, _>>()?;
@@ -52,6 +52,12 @@ fn collect_source_files(source: &DebianSourceControlFile<'_>) -> Result<Vec<DscF
         md5_entries.len() == sha1_entries.len() && md5_entries.len() == sha256_entries.len(),
         "MD5, SHA1, SHA256 do not have matching files"
     );
+
+    // aptly sorts files before hashing them, so we need to do the same in order
+    // to keep it consistent.
+    md5_entries.sort_by_key(|e| e.filename);
+    sha1_entries.sort_by_key(|e| e.filename);
+    sha256_entries.sort_by_key(|e| e.filename);
 
     (0..md5_entries.len())
         .map(|i| {
