@@ -104,15 +104,19 @@ pub struct AptlyContent {
 }
 
 impl AptlyContent {
-    #[tracing::instrument]
-    pub async fn new_from_aptly(aptly: &AptlyRest, repo: String) -> Result<Self> {
-        let packages = aptly.repo(&repo).packages().list().await?;
-        let mut content = AptlyContent {
+    pub fn new_empty(repo: String) -> Self {
+        Self {
             repo,
             binary_arch: Default::default(),
             binary_indep: Default::default(),
             sources: Default::default(),
-        };
+        }
+    }
+
+    #[tracing::instrument]
+    pub async fn new_from_aptly(aptly: &AptlyRest, repo: String) -> Result<Self> {
+        let packages = aptly.repo(&repo).packages().list().await?;
+        let mut content = Self::new_empty(repo);
 
         for p in packages {
             content.add_key(p);

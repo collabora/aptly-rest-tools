@@ -6,7 +6,7 @@ use std::{
 };
 
 use aptly_rest::{
-    api::{publish, snapshots::DeleteOptions},
+    api::{publish, repos, snapshots::DeleteOptions},
     AptlyRest, AptlyRestError,
 };
 use clap::{builder::ArgPredicate, Parser};
@@ -42,6 +42,9 @@ struct Opts {
     apt_root: Url,
     /// Apt repository distribution
     dist: String,
+    #[clap(long)]
+    /// Create the aptly repos if they don't already exist.
+    create_aptly_repo: bool,
     /// Publish the repo and snapshots to the given prefix.
     #[clap(long = "publish-to")]
     publish_prefix: Option<String>,
@@ -100,16 +103,6 @@ fn parse_snapshot_template(s: &str) -> Result<Template<'_>> {
     Ok(t)
 }
 
-fn is_error_not_found(e: &AptlyRestError) -> bool {
-    if let AptlyRestError::Request(e) = e {
-        if e.status() == Some(StatusCode::NOT_FOUND) {
-            return true;
-        }
-    }
-
-    false
-}
-
 fn parse_snapshots_list(path: &Path) -> Result<Vec<String>> {
     let file = File::open(path)?;
     let mut lines = vec![];
@@ -123,6 +116,24 @@ fn parse_snapshots_list(path: &Path) -> Result<Vec<String>> {
     }
 
     Ok(lines)
+}
+
+fn is_error_not_found(e: &AptlyRestError) -> bool {
+    if let AptlyRestError::Request(e) = e {
+        if e.status() == Some(StatusCode::NOT_FOUND) {
+            return true;
+        }
+    }
+
+    false
+}
+
+async fn repo_exists(aptly: &AptlyRest, repo: &str) -> Result<bool> {
+    match aptly.repo(repo).get().await {
+        Ok(_) => Ok(true),
+        Err(e) if is_error_not_found(&e) => Ok(false),
+        Err(e) => Err(e.into()),
+    }
 }
 
 async fn snapshot_exists(aptly: &AptlyRest, snapshot: &str) -> Result<bool> {
@@ -155,6 +166,13 @@ enum AptDist<'s, 't> {
 }
 
 impl AptDist<'_, '_> {
+    fn base_dist(&self) -> &str {
+        match self {
+            AptDist::Dist(dist) => dist,
+            AptDist::Snapshot { dist, .. } => dist,
+        }
+    }
+
     fn path(&self) -> String {
         match self {
             AptDist::Dist(dist) => (*dist).to_owned(),
@@ -205,7 +223,6 @@ async fn sync_dist(
                 if opts.dry_run {
                     if snapshot_exists(aptly, aptly_snapshot).await? {
                         info!("Would delete previous snapshot {aptly_snapshot}");
-                        continue;
                     }
                 } else if snapshot_delete(aptly, aptly_snapshot).await? {
                     info!("Deleted previous snapshot {aptly_snapshot}");
@@ -221,7 +238,27 @@ async fn sync_dist(
             });
         }
 
-        let aptly_contents = AptlyContent::new_from_aptly(aptly, aptly_repo.clone()).await?;
+        let aptly_contents = if repo_exists(aptly, &aptly_repo).await? {
+            AptlyContent::new_from_aptly(aptly, aptly_repo.clone()).await?
+        } else if opts.create_aptly_repo {
+            if opts.dry_run {
+                info!("Would create repo {aptly_repo}");
+                AptlyContent::new_empty(aptly_repo.clone())
+            } else {
+                aptly
+                    .create_repo(
+                        &repos::Repo::new(aptly_repo.clone())
+                            .with_distribution(Some(apt_repo.dist.base_dist().to_owned()))
+                            .with_component(Some(component.clone())),
+                    )
+                    .await?;
+                info!("Created aptly repo {aptly_repo}");
+                AptlyContent::new_from_aptly(aptly, aptly_repo.clone()).await?
+            }
+        } else {
+            bail!("Repo {aptly_repo} does not exist");
+        };
+
         let actions = scanner
             .sync_component(component, aptly.clone(), aptly_contents)
             .await?;
