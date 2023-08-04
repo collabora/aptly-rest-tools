@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use aptly_rest::AptlyRest;
 use clap::Parser;
 use color_eyre::Result;
-use obs2aptly::{AptlyContent, ObsContent};
+use sync2aptly::{AptlyContent, UploadOptions};
 use tracing::metadata::LevelFilter;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -25,6 +25,9 @@ struct Opts {
     aptly_repo: String,
     /// Directory with obs repositories
     obs_repo: PathBuf,
+    /// Maximum number of parallel uploads
+    #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
+    max_parallel_uploads: u8,
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
@@ -45,11 +48,16 @@ async fn main() -> Result<()> {
     };
 
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
-    let obs_content = ObsContent::new_from_path(opts.obs_repo).await?;
-
-    let actions = obs2aptly::sync(aptly, obs_content, aptly_contents).await?;
+    let actions = obs2aptly::sync(opts.obs_repo, aptly, aptly_contents).await?;
     if !opts.dry_run {
-        actions.apply().await?;
+        actions
+            .apply(
+                "obs2aptly",
+                &UploadOptions {
+                    max_parallel: opts.max_parallel_uploads,
+                },
+            )
+            .await?;
     }
 
     Ok(())
