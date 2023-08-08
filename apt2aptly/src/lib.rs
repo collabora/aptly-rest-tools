@@ -16,6 +16,7 @@ use debian_packaging::{
     },
 };
 use futures::io::{AsyncBufRead, BufReader as AsyncBufReader};
+use reqwest::Client;
 use sync2aptly::{
     AptlyContent, LazyVersion, OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation,
     PackageName, SyncActions,
@@ -111,10 +112,10 @@ pub struct DistScanner {
 
 impl DistScanner {
     #[tracing::instrument(fields(root_url = root_url.as_str()), skip(root_url))]
-    pub async fn new(root_url: &Url, dist: &str) -> Result<Self> {
+    pub async fn new(client: Client, root_url: Url, dist: &str) -> Result<Self> {
         let root_location = OriginLocation::Url(root_url.clone());
 
-        let root = HttpRepositoryClient::new(root_url.clone())?;
+        let root = HttpRepositoryClient::new_client(client, root_url)?;
         let release = root.release_reader(dist).await?;
 
         let architectures = release

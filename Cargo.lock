@@ -130,6 +130,7 @@ dependencies = [
  "futures",
  "http",
  "leon",
+ "reqwest",
  "serde",
  "sync2aptly",
  "tokio",

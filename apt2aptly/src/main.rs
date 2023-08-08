@@ -16,6 +16,7 @@ use color_eyre::{
 };
 use http::StatusCode;
 use leon::Template;
+use reqwest::Client;
 use sync2aptly::{AptlyContent, UploadOptions};
 use tracing::{info, metadata::LevelFilter, warn};
 use tracing_error::ErrorLayer;
@@ -189,13 +190,15 @@ struct AptRepo<'s, 't> {
 async fn sync_dist(
     aptly: &AptlyRest,
     aptly_repo_template: &Template<'_>,
+    apt_client: &Client,
     apt_repo: &AptRepo<'_, '_>,
     opts: &Opts,
 ) -> Result<()> {
     let mut sources = vec![];
 
     let dist_path = apt_repo.dist.path();
-    let scanner = apt2aptly::DistScanner::new(apt_repo.root, &dist_path).await?;
+    let scanner =
+        apt2aptly::DistScanner::new(apt_client.clone(), apt_repo.root.clone(), &dist_path).await?;
 
     for component in scanner.components() {
         let aptly_repo = aptly_repo_template
@@ -387,11 +390,14 @@ async fn main() -> Result<()> {
         .transpose()
         .wrap_err("Failed to parse aptly snapshot template")?;
 
+    let apt_client = Client::new();
+
     if let Some(snapshots_path) = &opts.apt_snapshots {
         for snapshot in parse_snapshots_list(snapshots_path)? {
             sync_dist(
                 &aptly,
                 &aptly_repo_template,
+                &apt_client,
                 &AptRepo {
                     root: &opts.apt_root,
                     dist: AptDist::Snapshot {
@@ -409,6 +415,7 @@ async fn main() -> Result<()> {
     sync_dist(
         &aptly,
         &aptly_repo_template,
+        &apt_client,
         &AptRepo {
             root: &opts.apt_root,
             dist: AptDist::Dist(&opts.dist),
