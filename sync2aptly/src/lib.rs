@@ -1,6 +1,6 @@
 use backoff::{Error as BackoffError, ExponentialBackoff};
 use color_eyre::{
-    eyre::{bail, ensure, eyre},
+    eyre::{bail, ensure, eyre, Context},
     Report, Result,
 };
 use debian_packaging::package_version::PackageVersion;
@@ -946,7 +946,8 @@ impl SyncActions {
                         .map_err(|e| BackoffError::permanent(e.into()))?;
                     Ok::<_, BackoffError<Report>>(dest)
                 })
-                .await?
+                .await
+                .wrap_err_with(|| format!("Failed to download {url}"))?
             }
         };
 
@@ -965,13 +966,14 @@ impl SyncActions {
                 .await
                 .map_err::<BackoffError<Report>, _>(|e| match &e {
                     AptlyRestError::Request(r) if is_reqwest_error_retriable(r) => {
-                        warn!("Failed to upload {filename}: {}", e);
+                        warn!("Failed to upload {filename}: {}", r);
                         BackoffError::transient(e.into())
                     }
                     _ => BackoffError::permanent(e.into()),
                 })
         })
-        .await?;
+        .await
+        .wrap_err_with(|| format!("Failed to upload {filename}"))?;
 
         Ok(())
     }
