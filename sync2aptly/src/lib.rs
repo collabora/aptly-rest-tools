@@ -566,7 +566,7 @@ impl Syncer for BinaryInDepSyncer {
                 info!("Removing {}", a);
                 actions.remove_aptly(a.clone());
             } else {
-                info!("Keeping {} as it was newer then anything in OBS", a);
+                info!("Keeping {} as it was newer then anything in origin", a);
             }
         }
 
