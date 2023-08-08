@@ -187,9 +187,47 @@ struct AptRepo<'s, 't> {
     dist: AptDist<'s, 't>,
 }
 
+#[derive(Hash, PartialEq, Eq)]
+struct AptlyPublishedDist {
+    prefix: String,
+    distribution: String,
+}
+
+struct AptlyPublishedCache(HashSet<AptlyPublishedDist>);
+
+impl AptlyPublishedCache {
+    #[tracing::instrument(skip(aptly))]
+    async fn load(aptly: &AptlyRest) -> Result<Self> {
+        Ok(Self(
+            aptly
+                .published()
+                .await?
+                .into_iter()
+                .map(|p| AptlyPublishedDist {
+                    prefix: p.prefix().to_owned(),
+                    distribution: p.distribution().to_owned(),
+                })
+                .collect(),
+        ))
+    }
+
+    fn contains(&self, key: &AptlyPublishedDist) -> bool {
+        self.0.contains(key)
+    }
+
+    fn insert(&mut self, key: AptlyPublishedDist) {
+        self.0.insert(key);
+    }
+
+    fn remove(&mut self, key: &AptlyPublishedDist) -> bool {
+        self.0.remove(key)
+    }
+}
+
 async fn sync_dist(
     aptly: &AptlyRest,
     aptly_repo_template: &Template<'_>,
+    aptly_published_cache: &mut AptlyPublishedCache,
     apt_client: &Client,
     apt_repo: &AptRepo<'_, '_>,
     opts: &Opts,
@@ -285,12 +323,12 @@ async fn sync_dist(
     }
 
     if let Some(publish_prefix) = &opts.publish_prefix {
-        let published = aptly.published().await?;
-        let existing_publish = published
-            .into_iter()
-            .any(|p| p.prefix() == publish_prefix && p.distribution() == dist_path);
+        let publish_key = AptlyPublishedDist {
+            prefix: publish_prefix.clone(),
+            distribution: dist_path.clone(),
+        };
 
-        if existing_publish {
+        if aptly_published_cache.contains(&publish_key) {
             if matches!(apt_repo.dist, AptDist::Snapshot { .. })
                 && opts.delete_existing_snapshot_publish
             {
@@ -310,6 +348,8 @@ async fn sync_dist(
                         publish_prefix, dist_path
                     );
                 }
+
+                aptly_published_cache.remove(&publish_key);
             } else {
                 warn!("Publish prefix {} already exists, skipping", publish_prefix);
                 return Ok(());
@@ -362,6 +402,8 @@ async fn sync_dist(
                 )
                 .await?;
         }
+
+        aptly_published_cache.insert(publish_key);
     }
 
     Ok(())
@@ -390,6 +432,8 @@ async fn main() -> Result<()> {
         .transpose()
         .wrap_err("Failed to parse aptly snapshot template")?;
 
+    let mut aptly_published_cache = AptlyPublishedCache::load(&aptly).await?;
+
     let apt_client = Client::new();
 
     if let Some(snapshots_path) = &opts.apt_snapshots {
@@ -397,6 +441,7 @@ async fn main() -> Result<()> {
             sync_dist(
                 &aptly,
                 &aptly_repo_template,
+                &mut aptly_published_cache,
                 &apt_client,
                 &AptRepo {
                     root: &opts.apt_root,
@@ -415,6 +460,7 @@ async fn main() -> Result<()> {
     sync_dist(
         &aptly,
         &aptly_repo_template,
+        &mut aptly_published_cache,
         &apt_client,
         &AptRepo {
             root: &opts.apt_root,
