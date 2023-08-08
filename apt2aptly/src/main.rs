@@ -313,8 +313,15 @@ async fn sync_dist(
             }
         }
 
+        let architectures = scanner.architectures().to_vec();
+
         if opts.dry_run {
-            info!("Would publish to {}/{}", publish_prefix, dist_path);
+            info!(
+                "Would publish to {}/{} ({})",
+                publish_prefix,
+                dist_path,
+                architectures.join(" ")
+            );
         } else {
             let kind = match &apt_repo.dist {
                 AptDist::Dist(_) => publish::SourceKind::Local,
@@ -330,7 +337,12 @@ async fn sync_dist(
                 publish::Signing::Disabled
             };
 
-            info!("Publishing to {}/{}...", publish_prefix, dist_path);
+            info!(
+                "Publishing to {}/{} ({})...",
+                publish_prefix,
+                dist_path,
+                architectures.join(" "),
+            );
             aptly
                 .publish_prefix(publish_prefix)
                 .publish(
@@ -338,6 +350,7 @@ async fn sync_dist(
                     &sources,
                     &publish::PublishOptions {
                         distribution: Some(dist_path),
+                        architectures,
                         signing: Some(signing),
                         skip_bz2: true,
                         skip_contents: true,

@@ -138,6 +138,10 @@ impl DistScanner {
         })
     }
 
+    pub fn architectures(&self) -> &[String] {
+        &self.architectures
+    }
+
     pub fn components(&self) -> &[String] {
         &self.components
     }
