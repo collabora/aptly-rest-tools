@@ -67,6 +67,9 @@ struct Opts {
     /// If the snapshot is already published, delete it.
     #[clap(long)]
     delete_existing_snapshot_publish: bool,
+    /// If a repo (not a snapshot) is already published, update it in-place.
+    #[clap(long)]
+    update_existing_repo_publish: bool,
     /// Maximum number of parallel uploads
     #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
     max_parallel: u8,
@@ -350,7 +353,9 @@ async fn sync_dist(
                 }
 
                 aptly_published_cache.remove(&publish_key);
-            } else {
+            } else if !(matches!(apt_repo.dist, AptDist::Dist(_))
+                && opts.update_existing_repo_publish)
+            {
                 warn!(
                     "Publish prefix {}/{} already exists, skipping",
                     publish_prefix, dist_path
@@ -385,30 +390,49 @@ async fn sync_dist(
                 publish::Signing::Disabled
             };
 
-            info!(
-                "Publishing to {}/{} ({})...",
-                publish_prefix,
-                dist_path,
-                architectures.join(" "),
-            );
-            aptly
-                .publish_prefix(publish_prefix)
-                .publish(
-                    kind,
-                    &sources,
-                    &publish::PublishOptions {
-                        distribution: Some(dist_path),
-                        architectures,
+            if aptly_published_cache.contains(&publish_key) {
+                info!(
+                    "Updating publish at {}/{} (not changing architecture list!)",
+                    publish_prefix, dist_path
+                );
+
+                aptly
+                    .publish_prefix(publish_prefix)
+                    .distribution(dist_path)
+                    .update(&publish::UpdateOptions {
                         signing: Some(signing),
                         skip_bz2: true,
                         skip_contents: true,
                         ..Default::default()
-                    },
-                )
-                .await?;
-        }
+                    })
+                    .await?;
+            } else {
+                info!(
+                    "Publishing to {}/{} ({})...",
+                    publish_prefix,
+                    dist_path,
+                    architectures.join(" "),
+                );
 
-        aptly_published_cache.insert(publish_key);
+                aptly
+                    .publish_prefix(publish_prefix)
+                    .publish(
+                        kind,
+                        &sources,
+                        &publish::PublishOptions {
+                            distribution: Some(dist_path),
+                            architectures,
+                            signing: Some(signing),
+                            skip_bz2: true,
+                            skip_contents: true,
+                            ..Default::default()
+                        },
+                    )
+                    .await?;
+            }
+
+            aptly_published_cache.insert(publish_key);
+        }
     }
 
     Ok(())
