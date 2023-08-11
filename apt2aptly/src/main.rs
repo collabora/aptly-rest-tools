@@ -359,7 +359,9 @@ async fn sync_dist(
             }
         }
 
-        let architectures = scanner.architectures().to_vec();
+        let architectures = std::iter::once("source".to_owned())
+            .chain(scanner.architectures().iter().cloned())
+            .collect::<Vec<_>>();
 
         if opts.dry_run {
             info!(
