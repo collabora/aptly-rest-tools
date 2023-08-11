@@ -534,7 +534,7 @@ impl Syncer for BinaryInDepSyncer {
                 .iter()
                 .find_map(|p| aptly.keys().find(|a| a.hash() == p.aptly_hash))
             {
-                info!("Keeping {} as it matches a hash in OBS", found);
+                info!("Keeping {} as it matches a hash in origin", found);
                 keep_in_aptly.push(found);
                 continue;
             }
@@ -542,7 +542,7 @@ impl Syncer for BinaryInDepSyncer {
             // Assuming all builds from the same source version will have the same version of the
             // package
             let deb_version = debs[0].version.get()?;
-            // If version is newer then everything in aptly add the package
+            // If version is newer than everything in aptly add the package
             if aptly.keys().all(|a| a.version() < deb_version) {
                 actions.add_deb_with_options(
                     debs[0],
@@ -553,9 +553,9 @@ impl Syncer for BinaryInDepSyncer {
                 continue;
             }
 
-            // If any of the aptly keys match the exact package version, then happyness?
+            // If any of the aptly keys match the exact package version, then happiness?
             if let Some(found) = aptly.keys().find(|a| a.version() == deb_version) {
-                info!("Keeping {} as it matches a version in OBS", found);
+                info!("Keeping {} as it matches a version in origin", found);
                 keep_in_aptly.push(found);
             }
         }
@@ -563,10 +563,9 @@ impl Syncer for BinaryInDepSyncer {
         let origin_newest = &origin.newest()?.version.get()?;
         for a in aptly.keys().filter(|key| !keep_in_aptly.contains(key)) {
             if a.version() < origin_newest {
-                info!("Removing {}", a);
                 actions.remove_aptly(a.clone());
             } else {
-                info!("Keeping {} as it was newer then anything in origin", a);
+                info!("Keeping {} as it was newer than anything in origin", a);
             }
         }
 
