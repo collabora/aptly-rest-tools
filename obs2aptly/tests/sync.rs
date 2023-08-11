@@ -11,7 +11,7 @@ use color_eyre::{eyre::eyre, Result};
 use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
-use sync2aptly::{AptlyContent, SyncAction};
+use sync2aptly::{AptlyContent, PoolPackagesCache, SyncAction};
 
 fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -154,9 +154,14 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
         }
     }
 
-    let actions = obs2aptly::sync(obs_temp_dir.path().to_owned(), aptly, aptly_contents)
-        .await
-        .unwrap();
+    let actions = obs2aptly::sync(
+        obs_temp_dir.path().to_owned(),
+        aptly.clone(),
+        aptly_contents,
+        PoolPackagesCache::new(aptly.clone()),
+    )
+    .await
+    .unwrap();
     let expected = load_expected_actions(&data_path(&path, "expected.json"));
     compare_actions(actions.actions(), expected, obs_temp_dir.path()).unwrap();
 }

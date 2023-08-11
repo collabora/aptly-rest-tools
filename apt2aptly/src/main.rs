@@ -17,7 +17,7 @@ use color_eyre::{
 use http::StatusCode;
 use leon::Template;
 use reqwest::Client;
-use sync2aptly::{AptlyContent, UploadOptions};
+use sync2aptly::{AptlyContent, PoolPackagesCache, UploadOptions};
 use tracing::{info, metadata::LevelFilter, warn};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -231,6 +231,7 @@ async fn sync_dist(
     aptly: &AptlyRest,
     aptly_repo_template: &Template<'_>,
     aptly_published_cache: &mut AptlyPublishedCache,
+    pool_packages: &PoolPackagesCache,
     apt_client: &Client,
     apt_repo: &AptRepo<'_, '_>,
     opts: &Opts,
@@ -304,7 +305,12 @@ async fn sync_dist(
         };
 
         let actions = scanner
-            .sync_component(component, aptly.clone(), aptly_contents)
+            .sync_component(
+                component,
+                aptly.clone(),
+                aptly_contents,
+                pool_packages.clone(),
+            )
             .await?;
         if !opts.dry_run {
             actions
@@ -462,6 +468,7 @@ async fn main() -> Result<()> {
         .wrap_err("Failed to parse aptly snapshot template")?;
 
     let mut aptly_published_cache = AptlyPublishedCache::load(&aptly).await?;
+    let pool_packages = PoolPackagesCache::new(aptly.clone());
 
     let apt_client = Client::new();
 
@@ -471,6 +478,7 @@ async fn main() -> Result<()> {
                 &aptly,
                 &aptly_repo_template,
                 &mut aptly_published_cache,
+                &pool_packages,
                 &apt_client,
                 &AptRepo {
                     root: &opts.apt_root,
@@ -490,6 +498,7 @@ async fn main() -> Result<()> {
         &aptly,
         &aptly_repo_template,
         &mut aptly_published_cache,
+        &pool_packages,
         &apt_client,
         &AptRepo {
             root: &opts.apt_root,

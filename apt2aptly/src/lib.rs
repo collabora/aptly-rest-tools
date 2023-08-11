@@ -19,7 +19,7 @@ use futures::io::{AsyncBufRead, BufReader as AsyncBufReader};
 use reqwest::Client;
 use sync2aptly::{
     AptlyContent, LazyVersion, OriginContentBuilder, OriginDeb, OriginDsc, OriginLocation,
-    PackageName, SyncActions,
+    PackageName, PoolPackagesCache, SyncActions,
 };
 use tracing::{info, info_span, warn};
 use url::Url;
@@ -275,12 +275,13 @@ impl DistScanner {
         fields(
             root_location = self.root_location.as_url().unwrap().as_str(),
             release = self.release.root_relative_path()),
-        skip(self, aptly, aptly_content))]
+        skip(self, aptly, aptly_content, pool_packages))]
     pub async fn sync_component(
         &self,
         component: &str,
         aptly: AptlyRest,
         aptly_content: AptlyContent,
+        pool_packages: PoolPackagesCache,
     ) -> Result<SyncActions> {
         let mut builder = OriginContentBuilder::new();
 
@@ -291,6 +292,6 @@ impl DistScanner {
         self.scan_sources(&mut builder, component).await?;
 
         let origin_content = builder.build();
-        sync2aptly::sync(origin_content, aptly, aptly_content).await
+        sync2aptly::sync(origin_content, aptly, aptly_content, pool_packages).await
     }
 }
