@@ -351,7 +351,10 @@ async fn sync_dist(
 
                 aptly_published_cache.remove(&publish_key);
             } else {
-                warn!("Publish prefix {} already exists, skipping", publish_prefix);
+                warn!(
+                    "Publish prefix {}/{} already exists, skipping",
+                    publish_prefix, dist_path
+                );
                 return Ok(());
             }
         }
