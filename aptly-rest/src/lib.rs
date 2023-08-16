@@ -116,7 +116,7 @@ impl AptlyRest {
     }
 
     pub async fn snapshots(&self) -> Result<Vec<Snapshot>, AptlyRestError> {
-        let url = self.url(&["api", "shapshots"]);
+        let url = self.url(&["api", "snapshots"]);
         self.get(url).await
     }
 
