@@ -1071,9 +1071,8 @@ checksum = "eaa37046cc0f6c3cc6090fbdbf73ef0b8ef4cfcc37f6befc0020f63e8cf121e1"
 
 [[package]]
 name = "debian-packaging"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0539a1554eb857785c48c6fa3b71043ab30329b16f9cce30c8f70ac05367bc6"
+version = "0.17.0-pre"
+source = "git+https://github.com/indygreg/linux-packaging-rs.git?rev=0a04d6178876046f2e312702a8821f19d454d0c9#0a04d6178876046f2e312702a8821f19d454d0c9"
 dependencies = [
  "ar",
  "async-compression",
