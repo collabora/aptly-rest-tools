@@ -5,7 +5,8 @@ members = [
   "sync2aptly",
   "aptlyctl",
   "aptly-rest",
-  "aptly-rest-mock"
+  "aptly-rest-mock",
+  "aptly-latest-snapshots"
 ]
 
 [workspace.dependencies]
