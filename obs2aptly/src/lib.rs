@@ -19,6 +19,7 @@ use aptly_rest::{
     AptlyRest,
 };
 
+#[tracing::instrument]
 fn origin_deb_version(path: &Path) -> Result<PackageVersion> {
     let f = std::fs::File::open(path)?;
     let mut parser = BinaryPackageReader::new(f)?;
