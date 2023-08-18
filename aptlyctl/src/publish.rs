@@ -178,7 +178,11 @@ impl PublishCommand {
                     })
                     .await?;
                 debug!(?repo);
-                info!("Updated published repository at '{}'", repo.prefix());
+                info!(
+                    "Updated published repository at '{}/{}'",
+                    repo.prefix(),
+                    repo.distribution()
+                );
             }
             PublishCommand::Drop(args) => {
                 if args.ignore_if_missing
@@ -195,7 +199,10 @@ impl PublishCommand {
                         .distribution(&args.distribution)
                         .delete(&publish::DeleteOptions { force: args.force })
                         .await?;
-                    info!("Deleted published repository at '{}'", args.prefix);
+                    info!(
+                        "Deleted published repository at '{}/{}'",
+                        args.prefix, args.distribution
+                    );
                 }
             }
         }
