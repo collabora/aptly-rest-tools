@@ -1,0 +1,12 @@
+Package: uuid-runtime-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 114
+Depends: uuid-runtime (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for uuid-runtime
+Build-Ids: 0bcbdad9945f3e519e508bdee920bda9f8d3aefd 96f109a8641bb9175fa3ac8ac1b7f93134485541 ce5a6e62ca620498031ddab33ccc56e0e4bdfacc

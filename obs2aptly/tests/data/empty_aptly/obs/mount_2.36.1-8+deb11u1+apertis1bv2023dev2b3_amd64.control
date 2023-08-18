@@ -1,0 +1,16 @@
+Package: mount
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 448
+Pre-Depends: libblkid1 (>= 2.17.2), libc6 (>= 2.17), libmount1 (>= 2.35.1), libsmartcols1 (>= 2.33)
+Depends: util-linux (>= 2.29.2-3~)
+Suggests: nfs-common
+Section: admin
+Priority: required
+Multi-Arch: foreign
+Homepage: http://www.kernel.org/pub/linux/utils/util-linux/
+Description: tools for mounting and manipulating filesystems
+ This package provides the mount(8), umount(8), swapon(8),
+ swapoff(8), and losetup(8) commands.

@@ -1,0 +1,13 @@
+Package: libblkid1-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 451
+Depends: libblkid1 (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libblkid1
+Build-Ids: 511210f67e7d53734c468f282c8ec501f8520ec0

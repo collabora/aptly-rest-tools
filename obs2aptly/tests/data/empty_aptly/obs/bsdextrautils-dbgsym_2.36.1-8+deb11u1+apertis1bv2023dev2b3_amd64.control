@@ -1,0 +1,12 @@
+Package: bsdextrautils-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 272
+Depends: bsdextrautils (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for bsdextrautils
+Build-Ids: 13c0e666e89a74b508a5a5b75b22bf2447ecd19c 1a7b27f2a54a0a055440a309063c55af3e646161 468457327c66b4546cd3da226890f244ebb24716 788d2fb3b5ea40bf901b1879c5f013a6218af5bd 7f386b8ef8db271e8dc9b0f3743bc9614e6a8cb4 ef8e5ec98d2902325d425002c767b740d37b103b f2f21376e0a3ca640aa03ab03639a0934a886890 f30a75d3a7b0d35a7eb67aea1ba110b6e477cc11

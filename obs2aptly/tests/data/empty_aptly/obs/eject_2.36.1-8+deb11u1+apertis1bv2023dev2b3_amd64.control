@@ -1,0 +1,20 @@
+Package: eject
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 192
+Depends: libc6 (>= 2.17), libmount1 (>= 2.24.2)
+Section: utils
+Priority: optional
+Multi-Arch: foreign
+Homepage: http://www.kernel.org/pub/linux/utils/util-linux/
+Description: ejects CDs and operates CD-Changers under Linux
+ This program will eject CD-ROMs (assuming your drive supports the CDROMEJECT
+ ioctl). It also allows setting the autoeject feature.
+ .
+ On supported ATAPI/IDE multi-disc CD-ROM changers, it allows changing
+ the active disc.
+ .
+ You can also use eject to properly disconnect external mass-storage
+ devices like digital cameras or portable music players.

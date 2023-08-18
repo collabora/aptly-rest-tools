@@ -1,0 +1,13 @@
+Package: libfdisk1-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 535
+Depends: libfdisk1 (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libfdisk1
+Build-Ids: 357c572271dbc35a8488d8b8c636770325f76ce9

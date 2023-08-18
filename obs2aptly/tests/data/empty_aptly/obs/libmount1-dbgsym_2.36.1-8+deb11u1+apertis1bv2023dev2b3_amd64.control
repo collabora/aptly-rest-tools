@@ -1,0 +1,13 @@
+Package: libmount1-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 451
+Depends: libmount1 (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libmount1
+Build-Ids: a2742fcf6ee83d057f4bdb2b0ba3907f17f822c7

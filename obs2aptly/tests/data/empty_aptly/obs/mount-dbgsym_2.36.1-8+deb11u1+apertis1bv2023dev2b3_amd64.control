@@ -1,0 +1,12 @@
+Package: mount-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 309
+Depends: mount (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for mount
+Build-Ids: 09caeb0f5706865ca179d3e96924c5e3829593e3 1789f2827ac1f04c958817ec313cb9b923ee301d c44444209ff3d95ab8e580fb09229c95c13023f2 c9d261e43ec915bfcb9c56d7257e8faebd70e677 d3a99f392ed0a7be98e6467eadb2d288d8b8b449

@@ -135,9 +135,18 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
             let control_file = File::open(entry.path()).unwrap();
             let mut control_rd = BufReader::new(control_file);
             let control = ControlFile::parse_reader(&mut control_rd).unwrap();
+
+            let package_name = control
+                .paragraphs()
+                .next()
+                .unwrap()
+                .required_field_str("Package")
+                .unwrap();
+            let is_udeb = package_name.ends_with("-udeb");
+
             let deb = DebBuilder::new(control);
 
-            let dest = dest.with_extension("deb");
+            let dest = dest.with_extension(if is_udeb { "udeb" } else { "deb" });
             let mut dest_file = File::create(dest).unwrap();
             deb.write(&mut dest_file).unwrap();
         } else {

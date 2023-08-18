@@ -1,0 +1,13 @@
+Package: libsmartcols1-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 306
+Depends: libsmartcols1 (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libsmartcols1
+Build-Ids: 98b9bf6d11fc0dd2b1c7d4dfd8a214f44fcc3efc

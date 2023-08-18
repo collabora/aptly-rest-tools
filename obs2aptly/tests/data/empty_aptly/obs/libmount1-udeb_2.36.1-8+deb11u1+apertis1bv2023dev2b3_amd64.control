@@ -1,0 +1,13 @@
+Package: libmount1-udeb
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 379
+Depends: libblkid1-udeb (>= 2.31), libc6-udeb (>= 2.31), libselinux1-udeb (>= 3.1)
+Section: debian-installer
+Priority: optional
+Description: stripped down device mounting library, for debian-installer
+ The device mounting library, used by mount and umount helpers.
+ .
+ This is a minimal package for debian-installer.
