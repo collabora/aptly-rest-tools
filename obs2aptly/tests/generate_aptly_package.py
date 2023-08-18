@@ -11,9 +11,9 @@ import json
 import sys
 
 
-def fnv1a_64(data: Path):
+def fnv1a_64(data: bytes):
     return functools.reduce(
-        lambda acc, c: (acc ^ c) * 1099511628211 % 2 ** 64,
+        lambda acc, c: (acc ^ c) * 1099511628211 % 2**64,
         data,
         14695981039346656037,
     )
