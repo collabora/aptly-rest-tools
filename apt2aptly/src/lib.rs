@@ -171,10 +171,11 @@ impl DistScanner {
         builder: &mut OriginContentBuilder,
         component: &str,
         arch: &str,
+        is_installer: bool,
     ) -> Result<()> {
         info!("Scanning packages");
 
-        let entry = match self.release.packages_entry(component, arch, false) {
+        let entry = match self.release.packages_entry(component, arch, is_installer) {
             Ok(entry) => entry,
             Err(DebianError::RepositoryReadPackagesIndicesEntryNotFound) => {
                 info!("Skipping missing entry");
@@ -286,7 +287,10 @@ impl DistScanner {
         let mut builder = OriginContentBuilder::new();
 
         for arch in &self.architectures {
-            self.scan_packages(&mut builder, component, arch).await?;
+            for is_installer in [false, true] {
+                self.scan_packages(&mut builder, component, arch, is_installer)
+                    .await?;
+            }
         }
 
         self.scan_sources(&mut builder, component).await?;
