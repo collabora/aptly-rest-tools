@@ -442,14 +442,21 @@ impl Syncer for BinaryDepSyncer {
         // Simple case just one package on both sides
         let origin_newest = origin.newest()?;
         let aptly_newest = aptly.newest()?;
+
+        let mut keep_aptly_newest = true;
+
         if origin_newest.version.get()? < aptly_newest.version() {
             warn!("{} older than {} in aptly", origin_newest, aptly_newest);
         } else if origin_newest.aptly_hash != aptly_newest.hash() {
             info!("== Changes for {} ==", name);
-            for key in aptly.keys().cloned() {
+            actions.add_deb(origin_newest)?;
+            keep_aptly_newest = false;
+        }
+
+        for key in aptly.keys().cloned() {
+            if !(keep_aptly_newest && key.hash() == aptly_newest.hash()) {
                 actions.remove_aptly(key);
             }
-            actions.add_deb(origin_newest)?;
         }
         Ok(())
     }
