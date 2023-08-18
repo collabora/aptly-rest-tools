@@ -12,6 +12,9 @@ use debian_packaging::{control::ControlFile, deb::builder::DebBuilder};
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use sync2aptly::{AptlyContent, PoolPackagesCache, SyncAction};
+use tracing::Level;
+use tracing_error::ErrorLayer;
+use tracing_subscriber::{filter::Targets, prelude::*};
 
 fn data_path<P0: AsRef<Path>, P1: AsRef<Path>>(subdir: P0, file: P1) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -114,7 +117,16 @@ static TRACING_INIT: OnceCell<()> = OnceCell::new();
 
 async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
     TRACING_INIT.get_or_init(|| {
-        tracing_subscriber::fmt::init();
+        tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(tracing_subscriber::fmt::layer())
+            .with(
+                Targets::new()
+                    .with_target("obs2aptly", Level::DEBUG)
+                    .with_target("sync2aptly", Level::DEBUG),
+            )
+            .init();
+        color_eyre::install().unwrap();
     });
     let mock = AptlyRestMock::start().await;
     mock.load_data(&data_path(&path, "aptly.json"));
