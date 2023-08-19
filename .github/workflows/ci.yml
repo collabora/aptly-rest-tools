@@ -1,8 +1,10 @@
 name: test suite
 on:
   push:
+    tags:
+      - '*'
     branches-ignore:
-        - "gh-readonly-queue/**"
+      - "gh-readonly-queue/**"
   pull_request:
   merge_group:
 
