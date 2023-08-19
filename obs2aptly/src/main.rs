@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use aptly_rest::AptlyRest;
 use clap::Parser;
 use color_eyre::Result;
-use sync2aptly::{AptlyContent, UploadOptions};
+use sync2aptly::{AptlyContent, PoolPackagesCache, UploadOptions};
 use tracing::metadata::LevelFilter;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -48,7 +48,8 @@ async fn main() -> Result<()> {
     };
 
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
-    let actions = obs2aptly::sync(opts.obs_repo, aptly, aptly_contents).await?;
+    let pool_packages = PoolPackagesCache::new(aptly.clone());
+    let actions = obs2aptly::sync(opts.obs_repo, aptly, aptly_contents, pool_packages).await?;
     if !opts.dry_run {
         actions
             .apply(

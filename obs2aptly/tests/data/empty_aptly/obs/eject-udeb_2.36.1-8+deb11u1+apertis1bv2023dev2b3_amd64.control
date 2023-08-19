@@ -1,0 +1,11 @@
+Package: eject-udeb
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Installer-Menu-Item: 96000
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 92
+Depends: cdebconf-udeb, libc6-udeb (>= 2.31), libmount1-udeb (>= 2.33)
+Section: debian-installer
+Priority: optional
+Description: ejects CDs from d-i menu

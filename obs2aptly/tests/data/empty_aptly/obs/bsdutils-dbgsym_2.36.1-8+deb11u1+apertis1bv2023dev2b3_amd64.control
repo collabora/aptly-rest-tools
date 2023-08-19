@@ -1,0 +1,12 @@
+Package: bsdutils-dbgsym
+Source: util-linux (2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Version: 1:2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 302
+Depends: bsdutils (= 1:2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for bsdutils
+Build-Ids: 35ca63cedcf1f545a7441b0e2629919daecbe9d0 3e86ca2295bd1a603db930c681c67a12aae7e2c7 3ea7b2561312bcea16f69d396d3908ce42bfd83e 78236e30ca713a1ce55291aff16155db56a1d479 a355cb32ec78ccfe3354dcec7ea48d33ee6557b8 b59b6e67ea7094c85e2c9a8d082e48b34a1b719a

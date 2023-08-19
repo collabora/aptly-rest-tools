@@ -1,0 +1,12 @@
+Package: fdisk-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 460
+Depends: fdisk (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for fdisk
+Build-Ids: 05ffa2ed9e793a7bda25ed6236036d2e046af871 42035f027ec73d63f0948a085816ec149ac1c2c5 bed496ba3c2617892003490e46edd42d0d792a55

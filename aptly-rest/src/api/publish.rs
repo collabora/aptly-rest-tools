@@ -169,7 +169,7 @@ impl<'de> DeserializeAs<'de, bool> for YesNoBool {
     }
 }
 
-#[derive(Debug, Copy, Clone, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceKind {
     Snapshot,

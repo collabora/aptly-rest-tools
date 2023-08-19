@@ -1,0 +1,13 @@
+Package: libsmartcols1-udeb
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 234
+Depends: libc6-udeb (>= 2.31)
+Section: debian-installer
+Priority: optional
+Description: stripped down smart column output aligment library, for debian-installer
+ This smart column output alignment library is used by fdisk utilities.
+ .
+ This is a minimal package for debian-installer.

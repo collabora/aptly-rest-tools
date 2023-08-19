@@ -7,7 +7,7 @@ use futures::TryStreamExt;
 use std::path::{Path, PathBuf};
 use sync2aptly::{
     AptlyContent, LazyVersion, OriginContent, OriginContentBuilder, OriginDeb, OriginDsc,
-    OriginLocation, PackageName, SyncActions,
+    OriginLocation, PackageName, PoolPackagesCache, SyncActions,
 };
 use tracing::warn;
 
@@ -19,6 +19,7 @@ use aptly_rest::{
     AptlyRest,
 };
 
+#[tracing::instrument]
 fn origin_deb_version(path: &Path) -> Result<PackageVersion> {
     let f = std::fs::File::open(path)?;
     let mut parser = BinaryPackageReader::new(f)?;
@@ -101,7 +102,8 @@ pub async fn sync(
     obs_path: PathBuf,
     aptly: AptlyRest,
     aptly_content: AptlyContent,
+    pool_packages: PoolPackagesCache,
 ) -> Result<SyncActions> {
     let origin_content = scan_content(obs_path).await?;
-    sync2aptly::sync(origin_content, aptly, aptly_content).await
+    sync2aptly::sync(origin_content, aptly, aptly_content, pool_packages).await
 }

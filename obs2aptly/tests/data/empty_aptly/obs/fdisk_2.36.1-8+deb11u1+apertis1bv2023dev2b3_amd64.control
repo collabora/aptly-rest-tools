@@ -1,0 +1,24 @@
+Package: fdisk
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 530
+Depends: libc6 (>= 2.14), libfdisk1 (>= 2.36), libmount1 (>= 2.24.2), libncursesw6 (>= 6), libsmartcols1 (>= 2.28~rc1), libtinfo6 (>= 6)
+Breaks: util-linux (<< 2.29.2-3~)
+Replaces: util-linux (<< 2.29.2-3~)
+Section: utils
+Priority: important
+Multi-Arch: foreign
+Homepage: http://www.kernel.org/pub/linux/utils/util-linux/
+Description: collection of partitioning utilities
+ This package contains the classic fdisk, sfdisk and cfdisk partitioning
+ utilities from the util-linux suite.
+ .
+ The utilities included in this package allow you to partition
+ your hard disk. The utilities supports both modern and legacy
+ partition tables (eg. GPT, MBR, etc).
+ .
+ The fdisk utility is the classical text-mode utility.
+ The cfdisk utilitity gives a more userfriendly curses based interface.
+ The sfdisk utility is mostly for automation and scripting uses.

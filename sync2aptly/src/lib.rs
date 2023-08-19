@@ -1,6 +1,6 @@
 use backoff::{Error as BackoffError, ExponentialBackoff};
 use color_eyre::{
-    eyre::{bail, ensure, eyre},
+    eyre::{bail, ensure, eyre, Context},
     Report, Result,
 };
 use debian_packaging::package_version::PackageVersion;
@@ -10,10 +10,10 @@ use once_cell::sync::OnceCell;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{hash_map::Entry, BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Display,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 use tempfile::tempfile;
 use tokio::{
@@ -427,7 +427,7 @@ impl Syncer for BinaryDepSyncer {
         actions: &mut SyncActions,
     ) -> Result<()> {
         let origin_newest = origin.newest()?;
-        actions.add_deb(origin_newest);
+        actions.add_deb(origin_newest)?;
         Ok(())
     }
 
@@ -442,14 +442,21 @@ impl Syncer for BinaryDepSyncer {
         // Simple case just one package on both sides
         let origin_newest = origin.newest()?;
         let aptly_newest = aptly.newest()?;
+
+        let mut keep_aptly_newest = true;
+
         if origin_newest.version.get()? < aptly_newest.version() {
             warn!("{} older than {} in aptly", origin_newest, aptly_newest);
         } else if origin_newest.aptly_hash != aptly_newest.hash() {
             info!("== Changes for {} ==", name);
-            for key in aptly.keys().cloned() {
+            actions.add_deb(origin_newest)?;
+            keep_aptly_newest = false;
+        }
+
+        for key in aptly.keys().cloned() {
+            if !(keep_aptly_newest && key.hash() == aptly_newest.hash()) {
                 actions.remove_aptly(key);
             }
-            actions.add_deb(origin_newest);
         }
         Ok(())
     }
@@ -476,7 +483,7 @@ impl Syncer for BinaryInDepSyncer {
             &AddDebOptions {
                 match_existing: MatchPoolPackageBy::KeyOrFilename,
             },
-        );
+        )?;
         Ok(())
     }
 
@@ -534,7 +541,7 @@ impl Syncer for BinaryInDepSyncer {
                 .iter()
                 .find_map(|p| aptly.keys().find(|a| a.hash() == p.aptly_hash))
             {
-                info!("Keeping {} as it matches a hash in OBS", found);
+                info!("Keeping {} as it matches a hash in origin", found);
                 keep_in_aptly.push(found);
                 continue;
             }
@@ -542,20 +549,20 @@ impl Syncer for BinaryInDepSyncer {
             // Assuming all builds from the same source version will have the same version of the
             // package
             let deb_version = debs[0].version.get()?;
-            // If version is newer then everything in aptly add the package
+            // If version is newer than everything in aptly add the package
             if aptly.keys().all(|a| a.version() < deb_version) {
                 actions.add_deb_with_options(
                     debs[0],
                     &AddDebOptions {
                         match_existing: MatchPoolPackageBy::KeyOrFilename,
                     },
-                );
+                )?;
                 continue;
             }
 
-            // If any of the aptly keys match the exact package version, then happyness?
+            // If any of the aptly keys match the exact package version, then happiness?
             if let Some(found) = aptly.keys().find(|a| a.version() == deb_version) {
-                info!("Keeping {} as it matches a version in OBS", found);
+                info!("Keeping {} as it matches a version in origin", found);
                 keep_in_aptly.push(found);
             }
         }
@@ -563,10 +570,9 @@ impl Syncer for BinaryInDepSyncer {
         let origin_newest = &origin.newest()?.version.get()?;
         for a in aptly.keys().filter(|key| !keep_in_aptly.contains(key)) {
             if a.version() < origin_newest {
-                info!("Removing {}", a);
                 actions.remove_aptly(a.clone());
             } else {
-                info!("Keeping {} as it was newer then anything in OBS", a);
+                info!("Keeping {} as it was newer than anything in origin", a);
             }
         }
 
@@ -628,14 +634,12 @@ pub enum MatchPoolPackageBy {
 #[derive(Debug, Clone, PartialOrd, Ord, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SyncAction {
     AddDeb {
-        package: String,
-        aptly_hash: String,
+        key: AptlyKey,
         location: OriginLocation,
         match_existing: MatchPoolPackageBy,
     },
     AddDsc {
-        package: String,
-        aptly_hash: String,
+        key: AptlyKey,
         dsc_location: OriginLocation,
         referenced_locations: Vec<OriginLocation>,
     },
@@ -643,47 +647,131 @@ pub enum SyncAction {
     RemoveAptly(AptlyKey),
 }
 
-#[derive(Default)]
-struct PoolPackagesByName(HashMap<String, Vec<packages::Package>>);
+#[derive(Debug, Hash, PartialEq, Eq)]
+struct PoolPackage {
+    key: AptlyKey,
+    filename: String,
+}
 
-impl PoolPackagesByName {
+#[derive(Clone, Debug)]
+pub struct PoolPackagesCache {
+    aptly: AptlyRest,
+    packages_by_name: Arc<RwLock<HashMap<String, HashSet<PoolPackage>>>>,
+}
+
+impl PoolPackagesCache {
+    pub fn new(aptly: AptlyRest) -> Self {
+        Self {
+            aptly,
+            packages_by_name: Default::default(),
+        }
+    }
+
+    #[tracing::instrument(skip_all)]
+    async fn load_packages(&self, package_names: impl Iterator<Item = &str>) -> Result<()> {
+        let query_parts = {
+            let mut packages_by_name = self.packages_by_name.write().unwrap();
+            package_names
+                .filter(|name| match packages_by_name.entry((*name).to_owned()) {
+                    e @ Entry::Vacant(_) => {
+                        e.or_default();
+                        true
+                    }
+                    Entry::Occupied(_) => false,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // Querying for all the packages results in a URL that is far too long
+        // (over the 65k limit set by reqwest), so split it into 1k packages per
+        // query.
+        const CHUNK_SIZE: usize = 1000;
+
+        for chunk in query_parts.chunks(CHUNK_SIZE) {
+            let query = chunk.to_vec().join("|");
+            let aptly_packages = self.aptly.packages().query(query, false).detailed().await?;
+
+            let mut packages_by_name = self.packages_by_name.write().unwrap();
+
+            for package in aptly_packages {
+                let filename = match &package {
+                    packages::Package::Source(source) => source
+                        .sha256_files()
+                        .iter()
+                        .find(|f| f.filename().ends_with(".dsc"))
+                        .ok_or_else(|| eyre!("{} is missing a .dsc", package.package()))?
+                        .filename(),
+                    packages::Package::Binary(binary) => binary.filename(),
+                };
+
+                packages_by_name
+                    .entry(package.package().to_owned())
+                    .or_default()
+                    .insert(PoolPackage {
+                        key: package.key().clone(),
+                        filename: filename.to_owned(),
+                    });
+            }
+        }
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self))]
     fn find_matching_package(
         &self,
-        package: &str,
-        aptly_hash: &str,
+        key: &AptlyKey,
         location: &OriginLocation,
         match_existing: MatchPoolPackageBy,
     ) -> Result<Option<AptlyKey>> {
-        let Some(packages) = self.0.get(package) else {
+        let packages_by_name = self.packages_by_name.read().unwrap();
+        let Some(packages) = packages_by_name.get(key.package()) else {
             return Ok(None);
         };
 
         if let Some(existing_package_with_hash) =
-            packages.iter().find(|m| m.key().hash() == aptly_hash)
+            packages.iter().find(|m| m.key.hash() == key.hash())
         {
-            return Ok(Some(existing_package_with_hash.key().clone()));
+            ensure!(
+                existing_package_with_hash.key == *key,
+                "Package '{}' has same hash as '{key}'",
+                existing_package_with_hash.key
+            );
+            return Ok(Some(existing_package_with_hash.key.clone()));
         }
 
         let filename = location
             .file_name()
             .ok_or_else(|| eyre!("Invalid location"))?;
-        if let Some(existing_package_with_filename) = packages.iter().find(|m| match *m {
-            packages::Package::Source(source) => source
-                .sha256_files()
-                .iter()
-                .any(|f| f.filename().ends_with(".dsc") && f.filename() == filename),
-            packages::Package::Binary(binary) => binary.filename() == filename,
-        }) {
+        if let Some(existing_package_with_filename) =
+            packages.iter().find(|m| m.filename == filename)
+        {
             ensure!(
                 match_existing == MatchPoolPackageBy::KeyOrFilename,
                 "Package already exists with different key '{}'",
-                existing_package_with_filename.key(),
+                existing_package_with_filename.key,
             );
-            return Ok(Some(existing_package_with_filename.key().clone()));
+            return Ok(Some(existing_package_with_filename.key.clone()));
         }
 
         Ok(None)
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn add_package_file(&self, key: AptlyKey, location: &OriginLocation) -> Result<()> {
+        let filename = location
+            .file_name()
+            .ok_or_else(|| eyre!("Invalid location"))?;
+
+        let mut packages_by_name = self.packages_by_name.write().unwrap();
+        let packages = packages_by_name
+            .get_mut(key.package())
+            .ok_or_else(|| eyre!("Tried to add file for unknown package '{}'", key.package()))?;
+        packages.insert(PoolPackage {
+            key,
+            filename: filename.to_owned(),
+        });
+        Ok(())
     }
 }
 
@@ -755,32 +843,39 @@ fn is_reqwest_error_retriable(e: &reqwest::Error) -> bool {
 pub struct SyncActions {
     aptly: AptlyRest,
     repo: String,
+    pool_packages: PoolPackagesCache,
     actions: Vec<SyncAction>,
     client: Client,
 }
 
 impl SyncActions {
-    pub fn new(aptly: AptlyRest, repo: String) -> Self {
+    pub fn new(aptly: AptlyRest, repo: String, pool_packages: PoolPackagesCache) -> Self {
         Self {
             aptly,
             repo,
+            pool_packages,
             actions: Vec::new(),
             client: Client::new(),
         }
     }
 
-    pub fn add_deb(&mut self, d: &OriginDeb) {
-        self.add_deb_with_options(d, &Default::default());
+    pub fn add_deb(&mut self, d: &OriginDeb) -> Result<()> {
+        self.add_deb_with_options(d, &Default::default())
     }
 
-    pub fn add_deb_with_options(&mut self, d: &OriginDeb, options: &AddDebOptions) {
+    pub fn add_deb_with_options(&mut self, d: &OriginDeb, options: &AddDebOptions) -> Result<()> {
         info!("Adding deb: {}", d.location);
         self.actions.push(SyncAction::AddDeb {
-            package: d.package.name().to_owned(),
-            aptly_hash: d.aptly_hash.clone(),
+            key: AptlyKey::new(
+                d.architecture.clone(),
+                (*d.package.name).to_owned(),
+                d.version.get()?.clone(),
+                d.aptly_hash.clone(),
+            ),
             location: d.location.clone(),
             match_existing: options.match_existing,
         });
+        Ok(())
     }
 
     #[tracing::instrument(skip_all)]
@@ -803,8 +898,12 @@ impl SyncActions {
             .collect::<Result<Vec<_>, _>>()?;
 
         self.actions.push(SyncAction::AddDsc {
-            package: d.package.name().to_owned(),
-            aptly_hash: d.aptly_hash.clone(),
+            key: AptlyKey::new(
+                "source".to_owned(),
+                (*d.package.name).to_owned(),
+                d.version.clone(),
+                d.aptly_hash.clone(),
+            ),
             dsc_location: d.dsc_location.clone(),
             referenced_locations,
         });
@@ -821,76 +920,43 @@ impl SyncActions {
     }
 
     #[tracing::instrument(skip_all)]
-    async fn query_pool_packages(&self) -> Result<PoolPackagesByName> {
-        // Querying for all the packages results in a URL that is far too long
-        // (over the 65k limit set by reqwest), so split it into 1k packages per
-        // query.
-        const CHUNK_SIZE: usize = 1000;
-
-        let query_parts: Vec<_> = self
-            .actions
-            .iter()
-            .filter_map::<&str, _>(|a| match a {
-                SyncAction::AddDeb { package, .. } => Some(package),
-                SyncAction::AddDsc { package, .. } => Some(package),
-                _ => None,
-            })
-            .collect();
-
-        let mut packages: Vec<packages::Package> = vec![];
-        for chunk in query_parts.chunks(CHUNK_SIZE) {
-            let query = chunk.to_vec().join("|");
-            packages.extend(self.aptly.packages().query(query, false).detailed().await?);
-        }
-
-        let mut result: PoolPackagesByName = Default::default();
-        for package in packages {
-            result
-                .0
-                .entry(package.package().to_owned())
-                .or_default()
-                .push(package);
-        }
-
-        Ok(result)
-    }
-
-    #[tracing::instrument(skip_all)]
     async fn reuse_existing_pool_packages(&mut self) -> Result<()> {
-        let pool_packages = self.query_pool_packages().await?;
+        self.pool_packages
+            .load_packages(self.actions.iter().filter_map::<&str, _>(|a| match a {
+                SyncAction::AddDeb { key, .. } => Some(key.package()),
+                SyncAction::AddDsc { key, .. } => Some(key.package()),
+                _ => None,
+            }))
+            .await?;
 
         for action in &mut self.actions {
             match action {
                 SyncAction::AddDeb {
-                    package,
-                    aptly_hash,
+                    key: new_key,
                     location,
                     match_existing,
                 } => {
-                    if let Some(key) = pool_packages.find_matching_package(
-                        package,
-                        aptly_hash,
+                    if let Some(existing_key) = self.pool_packages.find_matching_package(
+                        new_key,
                         location,
                         *match_existing,
                     )? {
-                        info!("Using package '{key}' for '{}'", location);
-                        *action = SyncAction::AddPoolPackage(key);
+                        info!("Using package '{existing_key}' for '{}'", location);
+                        *action = SyncAction::AddPoolPackage(existing_key);
                     }
                 }
                 SyncAction::AddDsc {
-                    package,
-                    aptly_hash,
+                    key: new_key,
                     dsc_location,
                     ..
                 } => {
-                    if let Some(key) = pool_packages.find_matching_package(
-                        package,
-                        aptly_hash,
+                    if let Some(existing_key) = self.pool_packages.find_matching_package(
+                        new_key,
                         dsc_location,
                         MatchPoolPackageBy::KeyOnly,
                     )? {
-                        info!("Using package '{key}' for '{}'", dsc_location);
-                        *action = SyncAction::AddPoolPackage(key);
+                        info!("Using package '{existing_key}' for '{}'", dsc_location);
+                        *action = SyncAction::AddPoolPackage(existing_key);
                     }
                 }
                 _ => (),
@@ -946,7 +1012,8 @@ impl SyncActions {
                         .map_err(|e| BackoffError::permanent(e.into()))?;
                     Ok::<_, BackoffError<Report>>(dest)
                 })
-                .await?
+                .await
+                .wrap_err_with(|| format!("Failed to download {url}"))?
             }
         };
 
@@ -965,13 +1032,14 @@ impl SyncActions {
                 .await
                 .map_err::<BackoffError<Report>, _>(|e| match &e {
                     AptlyRestError::Request(r) if is_reqwest_error_retriable(r) => {
-                        warn!("Failed to upload {filename}: {}", e);
+                        warn!("Failed to upload {filename}: {}", r);
                         BackoffError::transient(e.into())
                     }
                     _ => BackoffError::permanent(e.into()),
                 })
         })
-        .await?;
+        .await
+        .wrap_err_with(|| format!("Failed to upload {filename}"))?;
 
         Ok(())
     }
@@ -1007,15 +1075,17 @@ impl SyncActions {
             uploads.check_finished_tasks()?;
 
             match action {
-                SyncAction::AddDeb { location, .. } => {
+                SyncAction::AddDeb { key, location, .. } => {
                     uploads
                         .push_when_space_available(
                             self.upload_file(upload_dir.to_owned(), location),
                         )
                         .await?;
                     uploaded_packages += 1;
+                    self.pool_packages.add_package_file(key.clone(), location)?;
                 }
                 SyncAction::AddDsc {
+                    key,
                     dsc_location,
                     referenced_locations,
                     ..
@@ -1029,6 +1099,8 @@ impl SyncActions {
                     }
 
                     uploaded_packages += 1;
+                    self.pool_packages
+                        .add_package_file(key.clone(), dsc_location)?;
                 }
                 SyncAction::AddPoolPackage(key) => {
                     to_reuse.insert(key.clone());
@@ -1163,8 +1235,9 @@ pub async fn sync(
     origin_content: OriginContent,
     aptly: AptlyRest,
     aptly_content: AptlyContent,
+    pool_packages: PoolPackagesCache,
 ) -> Result<SyncActions> {
-    let mut actions = SyncActions::new(aptly, aptly_content.repo().to_owned());
+    let mut actions = SyncActions::new(aptly, aptly_content.repo().to_owned(), pool_packages);
     let architectures: HashSet<_> = origin_content
         .binary_arch
         .keys()

@@ -14,16 +14,11 @@ mod publish;
 mod repo;
 mod snapshot;
 
-#[derive(ValueEnum, Clone, Copy, Debug)]
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
 enum OutputFormat {
+    #[default]
     Name,
     Json,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Name
-    }
 }
 
 #[derive(Subcommand, Debug)]

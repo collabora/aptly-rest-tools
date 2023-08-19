@@ -1,20 +1,18 @@
 [package]
-name = "apt2aptly"
+name = "aptly-latest-snapshots"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 aptly-rest = { path = "../aptly-rest", version = "0.1.0" }
-async-trait = "0.1.58"
+axum = "0.6.20"
+axum-extra = { version = "0.7.7", features = ["typed-routing"] }
 clap = { version = "4", features = ["derive", "env"] }
 color-eyre = "0.6.2"
-debian-packaging = { workspace = true }
-futures = "0.3.21"
-http = "0.2.9"
-leon = "2.0.1"
-reqwest = "0.11.18"
+once_cell = "1.18.0"
+regex = "1.9.3"
 serde = "1.0.143"
-sync2aptly = { path = "../sync2aptly" }
+thiserror = "1.0.44"
 tokio = { version = "1.19.2", features = ["full"] }
 tracing = "0.1.37"
 tracing-error = "0.2.0"

@@ -1,0 +1,12 @@
+Package: rfkill-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 60
+Depends: rfkill (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Description: debug symbols for rfkill
+Build-Ids: 5d81627143ab26620e53eede8303d09dd6da7b98

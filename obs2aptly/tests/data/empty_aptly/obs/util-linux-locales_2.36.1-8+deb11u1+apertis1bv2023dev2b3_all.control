@@ -1,0 +1,17 @@
+Package: util-linux-locales
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Architecture: all
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 7740
+Depends: util-linux (>= 2.36.1)
+Section: localization
+Priority: optional
+Multi-Arch: foreign
+Homepage: http://www.kernel.org/pub/linux/utils/util-linux/
+Description: locales files for util-linux
+ This package contains the internationalization files for the util-linux
+ package.
+ .
+ They are needed when you want the programs in util-linux to print their
+ messages in other languages than English.

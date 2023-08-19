@@ -1,0 +1,13 @@
+Package: libuuid1-dbgsym
+Source: util-linux
+Version: 2.36.1-8+deb11u1+apertis1bv2023dev2b3
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: util-linux packagers <util-linux@packages.debian.org>
+Installed-Size: 44
+Depends: libuuid1 (= 2.36.1-8+deb11u1+apertis1bv2023dev2b3)
+Section: debug
+Priority: optional
+Multi-Arch: same
+Description: debug symbols for libuuid1
+Build-Ids: 2f8acf9e0d3177faf620396f0e2b3a7ce5678bab
