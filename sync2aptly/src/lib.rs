@@ -929,6 +929,8 @@ impl SyncActions {
             }))
             .await?;
 
+        let mut has_errors = false;
+
         for action in &mut self.actions {
             match action {
                 SyncAction::AddDeb {
@@ -936,13 +938,20 @@ impl SyncActions {
                     location,
                     match_existing,
                 } => {
-                    if let Some(existing_key) = self.pool_packages.find_matching_package(
+                    match self.pool_packages.find_matching_package(
                         new_key,
                         location,
                         *match_existing,
-                    )? {
-                        info!("Using package '{existing_key}' for '{}'", location);
-                        *action = SyncAction::AddPoolPackage(existing_key);
+                    ) {
+                        Ok(Some(existing_key)) => {
+                            info!("Using package '{existing_key}' for '{}'", location);
+                            *action = SyncAction::AddPoolPackage(existing_key);
+                        }
+                        Ok(None) => (),
+                        Err(err) => {
+                            error!("{err:?}");
+                            has_errors = true;
+                        }
                     }
                 }
                 SyncAction::AddDsc {
@@ -950,18 +959,27 @@ impl SyncActions {
                     dsc_location,
                     ..
                 } => {
-                    if let Some(existing_key) = self.pool_packages.find_matching_package(
+                    match self.pool_packages.find_matching_package(
                         new_key,
                         dsc_location,
                         MatchPoolPackageBy::KeyOnly,
-                    )? {
-                        info!("Using package '{existing_key}' for '{}'", dsc_location);
-                        *action = SyncAction::AddPoolPackage(existing_key);
+                    ) {
+                        Ok(Some(existing_key)) => {
+                            info!("Using package '{existing_key}' for '{}'", dsc_location);
+                            *action = SyncAction::AddPoolPackage(existing_key);
+                        }
+                        Ok(None) => (),
+                        Err(err) => {
+                            error!("{err:?}");
+                            has_errors = true;
+                        }
                     }
                 }
                 _ => (),
             }
         }
+
+        ensure!(!has_errors, "Found errors while examining package keys");
         Ok(())
     }
 
