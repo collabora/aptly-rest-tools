@@ -734,7 +734,7 @@ impl PoolPackagesCache {
         {
             ensure!(
                 existing_package_with_hash.key == *key,
-                "Package '{}' has same hash as '{key}'",
+                "Package '{location}' has same hash '{key}' as existing '{}'",
                 existing_package_with_hash.key
             );
             return Ok(Some(existing_package_with_hash.key.clone()));
@@ -748,7 +748,7 @@ impl PoolPackagesCache {
         {
             ensure!(
                 match_existing == MatchPoolPackageBy::KeyOrFilename,
-                "Package already exists with different key '{}'",
+                "Package '{location}' already exists with different key '{}'",
                 existing_package_with_filename.key,
             );
             return Ok(Some(existing_package_with_filename.key.clone()));
