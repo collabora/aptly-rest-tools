@@ -347,15 +347,15 @@ async fn sync_dist(
                         publish_prefix, dist_path
                     );
                 } else {
+                    info!(
+                        "Deleting previous published distribution {}/{}...",
+                        publish_prefix, dist_path
+                    );
                     aptly
                         .publish_prefix(publish_prefix)
                         .distribution(&dist_path)
                         .delete(&publish::DeleteOptions { force: true })
                         .await?;
-                    info!(
-                        "Deleted previous published distribution {}/{}",
-                        publish_prefix, dist_path
-                    );
                 }
 
                 aptly_published_cache.remove(&publish_key);
