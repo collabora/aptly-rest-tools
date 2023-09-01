@@ -49,6 +49,12 @@ struct Opts {
     /// Publish the repo and snapshots to the given prefix.
     #[clap(long = "publish-to")]
     publish_prefix: Option<String>,
+    /// Set the published release's 'Origin' to the given value.
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
+    publish_origin: Option<String>,
+    /// Set the published release's 'Label' to the given value.
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
+    publish_label: Option<String>,
     /// Use the given GPG key when publishing.
     #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
     publish_gpg_key: Option<String>,
@@ -431,6 +437,8 @@ async fn sync_dist(
                             signing: Some(signing),
                             skip_bz2: true,
                             skip_contents: true,
+                            origin: opts.publish_origin.clone(),
+                            label: opts.publish_label.clone(),
                             ..Default::default()
                         },
                     )
