@@ -436,9 +436,9 @@ async fn sync_dist(
                     )
                     .await?;
             }
-
-            aptly_published_cache.insert(publish_key);
         }
+
+        aptly_published_cache.insert(publish_key);
     }
 
     Ok(())
