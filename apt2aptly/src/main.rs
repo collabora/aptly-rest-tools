@@ -49,6 +49,12 @@ struct Opts {
     /// Publish the repo and snapshots to the given prefix.
     #[clap(long = "publish-to")]
     publish_prefix: Option<String>,
+    /// Set the published release's 'Origin' to the given value.
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
+    publish_origin: Option<String>,
+    /// Set the published release's 'Label' to the given value.
+    #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
+    publish_label: Option<String>,
     /// Use the given GPG key when publishing.
     #[clap(long, requires_if(ArgPredicate::IsPresent, "publish_prefix"))]
     publish_gpg_key: Option<String>,
@@ -347,15 +353,15 @@ async fn sync_dist(
                         publish_prefix, dist_path
                     );
                 } else {
+                    info!(
+                        "Deleting previous published distribution {}/{}...",
+                        publish_prefix, dist_path
+                    );
                     aptly
                         .publish_prefix(publish_prefix)
                         .distribution(&dist_path)
                         .delete(&publish::DeleteOptions { force: true })
                         .await?;
-                    info!(
-                        "Deleted previous published distribution {}/{}",
-                        publish_prefix, dist_path
-                    );
                 }
 
                 aptly_published_cache.remove(&publish_key);
@@ -431,14 +437,16 @@ async fn sync_dist(
                             signing: Some(signing),
                             skip_bz2: true,
                             skip_contents: true,
+                            origin: opts.publish_origin.clone(),
+                            label: opts.publish_label.clone(),
                             ..Default::default()
                         },
                     )
                     .await?;
             }
-
-            aptly_published_cache.insert(publish_key);
         }
+
+        aptly_published_cache.insert(publish_key);
     }
 
     Ok(())
