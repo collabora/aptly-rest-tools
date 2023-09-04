@@ -11,7 +11,7 @@ use aptly_rest::{
 };
 use clap::{builder::ArgPredicate, Parser};
 use color_eyre::{
-    eyre::{bail, Context},
+    eyre::{bail, ensure, Context},
     Result,
 };
 use http::StatusCode;
@@ -39,6 +39,10 @@ struct Opts {
     /// Template to use as the aptly repo (use {component} to access the current
     /// component)
     aptly_repo_template: String,
+    /// Treat the aptly repo name as a static string, not a template. Only valid
+    /// if the apt repo has one component.
+    #[clap(long)]
+    static_aptly_repo_name: bool,
     /// Root URL of apt repository
     apt_root: Url,
     /// Apt repository distribution
@@ -166,6 +170,11 @@ async fn snapshot_delete(aptly: &AptlyRest, snapshot: &str) -> Result<bool> {
     }
 }
 
+enum MaybeTemplate<'t> {
+    Static(String),
+    Template(Template<'t>),
+}
+
 enum AptDist<'s, 't> {
     Dist(&'s str),
     Snapshot {
@@ -235,7 +244,7 @@ impl AptlyPublishedCache {
 
 async fn sync_dist(
     aptly: &AptlyRest,
-    aptly_repo_template: &Template<'_>,
+    aptly_repo_template: &MaybeTemplate<'_>,
     aptly_published_cache: &mut AptlyPublishedCache,
     pool_packages: &PoolPackagesCache,
     apt_client: &Client,
@@ -248,10 +257,21 @@ async fn sync_dist(
     let scanner =
         apt2aptly::DistScanner::new(apt_client.clone(), apt_repo.root.clone(), &dist_path).await?;
 
+    if let MaybeTemplate::Static(_) = aptly_repo_template {
+        ensure!(
+            scanner.components().len() == 1,
+            "Static repo templates are only supported if the dist has 1 component"
+        );
+    }
+
     for component in scanner.components() {
-        let aptly_repo = aptly_repo_template
-            .render(&HashMap::from([(TEMPLATE_VAR_COMPONENT, &component)]))
-            .wrap_err("Failed to render aptly repo template")?;
+        let aptly_repo = match aptly_repo_template {
+            MaybeTemplate::Static(static_) => static_.to_owned(),
+            MaybeTemplate::Template(template) => template
+                .render(&HashMap::from([(TEMPLATE_VAR_COMPONENT, &component)]))
+                .wrap_err("Failed to render aptly repo template")?,
+        };
+
         let aptly_snapshot = if let AptDist::Snapshot {
             snapshot, template, ..
         } = &apt_repo.dist
@@ -466,8 +486,14 @@ async fn main() -> Result<()> {
         AptlyRest::new(opts.api_url.clone())
     };
 
-    let aptly_repo_template = parse_component_template(&opts.aptly_repo_template)
-        .wrap_err("Failed to parse aptly repo template")?;
+    let aptly_repo_template = if opts.static_aptly_repo_name {
+        MaybeTemplate::Static(opts.aptly_repo_template.clone())
+    } else {
+        MaybeTemplate::Template(
+            parse_component_template(&opts.aptly_repo_template)
+                .wrap_err("Failed to parse aptly repo template")?,
+        )
+    };
     let aptly_snapshot_template = opts
         .aptly_snapshot_template
         .as_deref()
