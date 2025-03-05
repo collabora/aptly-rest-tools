@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use anyhow::Result;
 use aptly_rest::{
@@ -57,10 +57,27 @@ async fn parse_dsc(h: ParseDsc) -> Result<()> {
 }
 
 #[derive(clap::Parser, Debug)]
-struct Packages {
+struct ListPackages {
     #[clap(short, long)]
     detailed: bool,
     query: Option<String>,
+}
+
+#[derive(clap::Parser, Debug)]
+struct DeletePackages {
+    packages: Vec<String>,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum PackagesAction {
+    List(ListPackages),
+    Delete(DeletePackages),
+}
+
+#[derive(clap::Parser, Debug)]
+struct Packages {
+    #[clap(subcommand)]
+    action: PackagesAction,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -76,28 +93,41 @@ struct Repo {
 }
 
 async fn repo(name: String, aptly: AptlyRest, action: RepoAction) -> Result<()> {
+    let repo = aptly.repo(name);
     match action {
         RepoAction::Packages(p) => {
-            let repo = aptly.repo(name);
             let packages = repo.packages();
-            if let Some(query) = p.query {
-                let query = packages.query(query, false);
-                if p.detailed {
-                    for p in query.detailed().await? {
-                        println!("{p:#?}");
-                    }
-                } else {
-                    for p in query.list().await? {
-                        println!("{p}");
+            match p.action {
+                PackagesAction::List(list) => {
+                    if let Some(query) = list.query {
+                        let query = packages.query(query, false);
+                        if list.detailed {
+                            for p in query.detailed().await? {
+                                println!("{p:#?}");
+                            }
+                        } else {
+                            for p in query.list().await? {
+                                println!("{p}");
+                            }
+                        }
+                    } else if list.detailed {
+                        for p in packages.detailed().await? {
+                            println!("{p:#?}");
+                        }
+                    } else {
+                        for p in packages.list().await? {
+                            println!("{p}");
+                        }
                     }
                 }
-            } else if p.detailed {
-                for p in packages.detailed().await? {
-                    println!("{p:#?}");
-                }
-            } else {
-                for p in packages.list().await? {
-                    println!("{p}");
+                PackagesAction::Delete(d) => {
+                    let to_delete: Vec<_> = d
+                        .packages
+                        .iter()
+                        .map(|p| AptlyKey::from_str(p))
+                        .collect::<Result<_, _>>()?;
+
+                    packages.delete(&to_delete).await?
                 }
             }
         }
