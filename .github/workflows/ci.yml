@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_REPOSITORY: ${{ github.repository }}
 
 jobs:
   test:
@@ -53,6 +53,9 @@ jobs:
       contents: read
       packages: write
 
+    env:
+      IMAGE_NAME: latest-snapshots
+
     steps:
       - uses: actions/checkout@v3
       - uses: docker/login-action@v2
@@ -63,12 +66,16 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: |
+            # this one is just for backward compatibility (April 2025)
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+            # use this one
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: Dockerfile.latest-snapshots
+          file: Dockerfile.${{ env.IMAGE_NAME }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
