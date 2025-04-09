@@ -67,8 +67,10 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           tags: |
-            # explicitly set the default behavior, so we can
-            # customize things later
+            # set latest tag for default branch
+            # see https://github.com/docker/metadata-action#latest-tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            # then follow the default behavior
             # see https://github.com/docker/metadata-action#tags-input
             type=schedule
             type=ref,event=branch
