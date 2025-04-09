@@ -66,6 +66,16 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v4
         with:
+          tags: |
+            # set latest tag for default branch
+            # see https://github.com/docker/metadata-action#latest-tag
+            type=raw,value=latest,enable={{is_default_branch}}
+            # then follow the default behavior
+            # see https://github.com/docker/metadata-action#tags-input
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
           images: |
             # this one is just for backward compatibility (April 2025)
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
