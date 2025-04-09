@@ -66,6 +66,14 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v4
         with:
+          tags: |
+            # explicitly set the default behavior, so we can
+            # customize things later
+            # see https://github.com/docker/metadata-action#tags-input
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
           images: |
             # this one is just for backward compatibility (April 2025)
             ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
