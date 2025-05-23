@@ -448,7 +448,7 @@ impl Syncer for BinaryDepSyncer {
         if origin_newest.version.get()? < aptly_newest.version() {
             warn!("{} older than {} in aptly", origin_newest, aptly_newest);
         } else if origin_newest.aptly_hash != aptly_newest.hash() {
-            info!("== Changes for {} ==", name);
+            debug!("== Changes for {} ==", name);
             actions.add_deb(origin_newest)?;
             keep_aptly_newest = false;
         }
@@ -517,7 +517,7 @@ impl Syncer for BinaryInDepSyncer {
         //   get the exact version of the .deb as it may have an epoch which means it's newer
         //     -> shortcut if aptly has no epoch and changes version matches?
         //
-        info!("=== Changes for {} ===", name);
+        debug!("=== Changes for {} ===", name);
         let mut keep_in_aptly = Vec::new();
 
         let origin_by_version = origin.debs().iter().try_fold(
@@ -531,7 +531,7 @@ impl Syncer for BinaryInDepSyncer {
         )?;
 
         for ((source_name, version), debs) in origin_by_version.iter() {
-            info!(
+            debug!(
                 "=== Changes for source {}, version {} ===",
                 source_name, version
             );
@@ -541,7 +541,7 @@ impl Syncer for BinaryInDepSyncer {
                 .iter()
                 .find_map(|p| aptly.keys().find(|a| a.hash() == p.aptly_hash))
             {
-                info!("Keeping {} as it matches a hash in origin", found);
+                debug!("Keeping {} as it matches a hash in origin", found);
                 keep_in_aptly.push(found);
                 continue;
             }
@@ -562,7 +562,7 @@ impl Syncer for BinaryInDepSyncer {
 
             // If any of the aptly keys match the exact package version, then happiness?
             if let Some(found) = aptly.keys().find(|a| a.version() == deb_version) {
-                info!("Keeping {} as it matches a version in origin", found);
+                debug!("Keeping {} as it matches a version in origin", found);
                 keep_in_aptly.push(found);
             }
         }
@@ -572,7 +572,7 @@ impl Syncer for BinaryInDepSyncer {
             if a.version() < origin_newest {
                 actions.remove_aptly(a.clone());
             } else {
-                info!("Keeping {} as it was newer than anything in origin", a);
+                debug!("Keeping {} as it was newer than anything in origin", a);
             }
         }
 
