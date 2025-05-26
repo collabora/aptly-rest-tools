@@ -51,26 +51,24 @@ Alternatively, it can be passed directly to `aptlyctl` with the argument `--api-
 
     export APTLY_API_TOKEN=XXXXXXXXXXXXXXXX
 
+Similarly, the API URL can be set either with the command-line argument `--api-url`/`-u`, or through the environment:
+
+    export APTLY_API_URL=https://repositories.apertis.org/apertis/_aptly
+
 ### List repositories
 
-    aptlyctl \
-        -u https://repositories.apertis.org/apertis/_aptly \
-        repo list
+    aptlyctl repo list
 
 ### Create repository
 
-    aptlyctl \
-        -u https://repositories.apertis.org/apertis/_aptly \
-        repo create \
+    aptlyctl repo create \
         --component non-free \
         --distribution apertis \
         apertis:v2024dev0:non-free/default
 
 ### Publish repository
 
-    aptlyctl \
-        -u https://repositories.apertis.org/apertis/_aptly \
-        publish create repo apertis \
+    aptlyctl publish create repo apertis \
         --architecture=source \
         --architecture=armhf \
         --architecture=amd64 \
@@ -85,15 +83,11 @@ Alternatively, it can be passed directly to `aptlyctl` with the argument `--api-
 
 ### Drop repository
 
-    aptlyctl \
-        -u https://repositories.apertis.org/apertis/_aptly \
-        repo drop apertis:v2024dev0:non-free/default
+    aptlyctl repo drop apertis:v2024dev0:non-free/default
 
 ### Drop publish
 
-    aptlyctl \
-        -u https://repositories.apertis.org/apertis/_aptly \
-        publish drop apertis v2024dev0:non-free
+    aptlyctl publish drop apertis v2024dev0:non-free
 
 ## Contributing
 
