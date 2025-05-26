@@ -37,10 +37,81 @@ A lightweight HTTP API that returns the latest published snapshot for a
 given distribution. Intended for external systems to dynamically query
 the most recent publish state.
 
-### Contributing
+
+## Installation
+
+```sh
+cargo install --locked --git https://github.com/collabora/aptly-rest-tools aptlyctl
+~/.cargo/bin/aptlyctl --help
+```
+
+## Usage
+
+Set the token as environment variable to interact with the aptly instance.
+Alternatively, it can be passed directly to `aptlyctl` with the argument `--api-token`.
+
+``` sh
+export APTLY_API_TOKEN=XXXXXXXXXXXXXXXX
+```
+
+### List repositories
+
+``` sh
+aptlyctl \
+    -u https://repositories.apertis.org/apertis/_aptly \
+    repo list
+```
+
+### Create repository
+
+``` sh
+aptlyctl \
+    -u https://repositories.apertis.org/apertis/_aptly \
+    repo create \
+    --component non-free \
+    --distribution apertis \
+    apertis:v2024dev0:non-free/default
+```
+
+### Publish repository
+
+``` sh
+aptlyctl \
+    -u https://repositories.apertis.org/apertis/_aptly \
+    publish create repo apertis \
+    --architecture=source \
+    --architecture=armhf \
+    --architecture=amd64 \
+    --architecture=arm64 \
+    --distribution=v2024dev0 \
+    --skip-contents --skip-bz2 \
+    apertis:v2024dev0:development/default//development \
+    apertis:v2024dev0:sdk/default//sdk \
+    apertis:v2024dev0:target/default//target \
+    apertis:v2024dev0:non-free/default//non-free \
+    --gpg-key=XXXXXXXX
+```
+
+### Drop repository
+
+``` sh
+aptlyctl \
+    -u https://repositories.apertis.org/apertis/_aptly \
+    repo drop apertis:v2024dev0:non-free/default
+```
+
+### Drop publish
+
+``` sh
+aptlyctl \
+    -u https://repositories.apertis.org/apertis/_aptly \
+    publish drop apertis v2024dev0:non-free
+```
+
+## Contributing
 
 Contributions, bug reports, and feature suggestions are welcome. Please open an issue or submit a pull request with clear descriptions of the changes.
 
-### License
+## License
 
 This project is dual-licensed under the [Apache 2.0](./LICENSE-APACHE) and [MIT](./LICENSE-MIT) licenses.
