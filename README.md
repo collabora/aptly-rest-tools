@@ -40,73 +40,60 @@ the most recent publish state.
 
 ## Installation
 
-```sh
-cargo install --locked --git https://github.com/collabora/aptly-rest-tools aptlyctl
-~/.cargo/bin/aptlyctl --help
-```
+    cargo install --locked --git https://github.com/collabora/aptly-rest-tools aptlyctl
+
+This will install `aptlyctl` into `~/.cargo/bin`.
 
 ## Usage
 
 Set the token as environment variable to interact with the aptly instance.
 Alternatively, it can be passed directly to `aptlyctl` with the argument `--api-token`.
 
-``` sh
-export APTLY_API_TOKEN=XXXXXXXXXXXXXXXX
-```
+    export APTLY_API_TOKEN=XXXXXXXXXXXXXXXX
 
 ### List repositories
 
-``` sh
-aptlyctl \
-    -u https://repositories.apertis.org/apertis/_aptly \
-    repo list
-```
+    aptlyctl \
+        -u https://repositories.apertis.org/apertis/_aptly \
+        repo list
 
 ### Create repository
 
-``` sh
-aptlyctl \
-    -u https://repositories.apertis.org/apertis/_aptly \
-    repo create \
-    --component non-free \
-    --distribution apertis \
-    apertis:v2024dev0:non-free/default
-```
+    aptlyctl \
+        -u https://repositories.apertis.org/apertis/_aptly \
+        repo create \
+        --component non-free \
+        --distribution apertis \
+        apertis:v2024dev0:non-free/default
 
 ### Publish repository
 
-``` sh
-aptlyctl \
-    -u https://repositories.apertis.org/apertis/_aptly \
-    publish create repo apertis \
-    --architecture=source \
-    --architecture=armhf \
-    --architecture=amd64 \
-    --architecture=arm64 \
-    --distribution=v2024dev0 \
-    --skip-contents --skip-bz2 \
-    apertis:v2024dev0:development/default//development \
-    apertis:v2024dev0:sdk/default//sdk \
-    apertis:v2024dev0:target/default//target \
-    apertis:v2024dev0:non-free/default//non-free \
-    --gpg-key=XXXXXXXX
-```
+    aptlyctl \
+        -u https://repositories.apertis.org/apertis/_aptly \
+        publish create repo apertis \
+        --architecture=source \
+        --architecture=armhf \
+        --architecture=amd64 \
+        --architecture=arm64 \
+        --distribution=v2024dev0 \
+        --skip-contents --skip-bz2 \
+        apertis:v2024dev0:development/default//development \
+        apertis:v2024dev0:sdk/default//sdk \
+        apertis:v2024dev0:target/default//target \
+        apertis:v2024dev0:non-free/default//non-free \
+        --gpg-key=XXXXXXXX
 
 ### Drop repository
 
-``` sh
-aptlyctl \
-    -u https://repositories.apertis.org/apertis/_aptly \
-    repo drop apertis:v2024dev0:non-free/default
-```
+    aptlyctl \
+        -u https://repositories.apertis.org/apertis/_aptly \
+        repo drop apertis:v2024dev0:non-free/default
 
 ### Drop publish
 
-``` sh
-aptlyctl \
-    -u https://repositories.apertis.org/apertis/_aptly \
-    publish drop apertis v2024dev0:non-free
-```
+    aptlyctl \
+        -u https://repositories.apertis.org/apertis/_aptly \
+        publish drop apertis v2024dev0:non-free
 
 ## Contributing
 
