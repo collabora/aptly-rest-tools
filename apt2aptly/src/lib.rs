@@ -230,7 +230,13 @@ impl DistScanner {
     ) -> Result<()> {
         info!("Scanning sources");
 
-        let entry = self.release.sources_entry(component)?;
+        let entry = match self.release.sources_entry(component) {
+            Err(DebianError::RepositoryReadSourcesIndicesEntryNotFound) => {
+                info!("Skipping sources, no entry found");
+                return Ok(());
+            }
+            result => result?,
+        };
         let mut reader = self.entry_reader(&entry, entry.compression).await?;
         while let Some(paragraph) = reader.read_paragraph().await? {
             let source = DebianSourceControlFile::from(paragraph);
