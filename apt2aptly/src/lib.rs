@@ -33,7 +33,7 @@ use aptly_rest::{
 #[tracing::instrument]
 fn basename_or_error(path: &str) -> Result<&str> {
     path.split('/')
-        .last()
+        .next_back()
         .ok_or_else(|| eyre!("Bad filename {path}"))
 }
 

@@ -130,21 +130,21 @@ impl AptlyRest {
         url
     }
 
-    async fn get<'a, T>(&self, url: Url) -> Result<T, AptlyRestError>
+    async fn get<T>(&self, url: Url) -> Result<T, AptlyRestError>
     where
         T: serde::de::DeserializeOwned,
     {
         self.json_request(self.client.get(url)).await
     }
 
-    async fn post<'a, T>(&self, url: Url) -> Result<T, AptlyRestError>
+    async fn post<T>(&self, url: Url) -> Result<T, AptlyRestError>
     where
         T: serde::de::DeserializeOwned,
     {
         self.json_request(self.client.post(url)).await
     }
 
-    async fn post_body<'a, S: Serialize + ?Sized, T>(
+    async fn post_body<S: Serialize + ?Sized, T>(
         &self,
         url: Url,
         body: &S,
@@ -155,7 +155,7 @@ impl AptlyRest {
         self.json_request(self.client.post(url).json(body)).await
     }
 
-    async fn put_body<'a, S: Serialize + ?Sized, T>(
+    async fn put_body<S: Serialize + ?Sized, T>(
         &self,
         url: Url,
         body: &S,
