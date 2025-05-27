@@ -70,6 +70,8 @@ jobs:
             # set latest tag for default branch
             # see https://github.com/docker/metadata-action#latest-tag
             type=raw,value=latest,enable={{is_default_branch}}
+            # add a unique tag for each workflow run
+            type=sha,prefix=ci-${{ github.run_id }}-,format=short
             # then follow the default behavior
             # see https://github.com/docker/metadata-action#tags-input
             type=schedule
