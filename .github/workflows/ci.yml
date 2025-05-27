@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@1.66.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-targets --all-features
 
   fmt:
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@1.66.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             components: rustfmt
       - run: cargo fmt --all --check
@@ -36,9 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@1.66.0
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             components: clippy
+            # Pin clippy, so that new lints don't break the build.
+            toolchain: '1.87.0'
       - run: cargo clippy --all-targets -- -D warnings
 
   docker-image:
