@@ -67,7 +67,7 @@ impl AptlyRest {
 
     pub async fn db_cleanup(&self) -> Result<(), AptlyRestError> {
         let url = self.url(&["api", "db", "cleanup"]);
-        self.post(url).await?;
+        self.post::<()>(url).await?;
         Ok(())
     }
 

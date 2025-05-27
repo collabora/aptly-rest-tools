@@ -107,7 +107,7 @@ async fn get_healthz(Healthz: Healthz) -> String {
 }
 
 #[derive(TypedPath, Deserialize)]
-#[typed_path("/latest/:dist")]
+#[typed_path("/latest/{dist}")]
 struct LatestSnapshot {
     dist: String,
 }
@@ -181,11 +181,11 @@ async fn main() -> Result<()> {
             latest_snapshots_by_dist,
         });
 
-    let server = axum::Server::try_bind(&opts.bind_addr)?;
+    let listener = tokio::net::TcpListener::bind(&opts.bind_addr).await?;
     info!("Starting server on {}...", opts.bind_addr);
 
     tokio::select! {
-        r = server.serve(app.into_make_service()) => {
+        r = axum::serve(listener, app.into_make_service()) => {
             Err(r.wrap_err("Failed to run server").unwrap_err())
         }
         r = refresh_handle => {

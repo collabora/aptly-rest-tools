@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use http_types::StatusCode;
+use http::StatusCode;
 use pool::Package;
 use repo::Repositories;
 use serde::Deserialize;
@@ -47,7 +47,7 @@ impl AptlyRestMock {
         Mock::given(method("GET"))
             .and(path("api/version"))
             .respond_with(
-                ResponseTemplate::new(StatusCode::Ok)
+                ResponseTemplate::new(StatusCode::OK)
                     .set_body_json(json!({ "Version": APTLY_VERSION })),
             )
             .mount(&server.server)
