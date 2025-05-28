@@ -192,7 +192,7 @@ impl OriginLocation {
     pub fn file_name(&self) -> Option<&str> {
         match self {
             OriginLocation::Path(path) => path.file_name().and_then(|f| f.to_str()),
-            OriginLocation::Url(url) => url.path_segments().and_then(|s| s.last()),
+            OriginLocation::Url(url) => url.path_segments().and_then(|mut s| s.next_back()),
         }
     }
 
@@ -301,7 +301,7 @@ impl OriginPackage {
     pub fn newest(&self) -> Result<&OriginDeb> {
         let mut n = self
             .debs
-            .get(0)
+            .first()
             .ok_or_else(|| eyre!("No debs in package"))?;
         for deb in &self.debs[1..] {
             if deb.version.get()? > n.version.get()? {
@@ -834,9 +834,7 @@ pub struct UploadOptions {
 }
 
 fn is_reqwest_error_retriable(e: &reqwest::Error) -> bool {
-    !e.status()
-        .as_ref()
-        .map_or(false, StatusCode::is_client_error)
+    !e.status().as_ref().is_some_and(StatusCode::is_client_error)
 }
 
 #[derive(Debug)]

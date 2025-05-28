@@ -7,26 +7,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.125", features = [ "derive" ] }
-reqwest = { version = "0.11.10", features = [ "json", "multipart" ] }
-tokio = { version = "1.19.2", features = [ "full" ] }
-url = "2.2.2"
-serde_json = "1.0.81"
+base16ct = { version = "0.2.0", features = ["alloc"] }
 clap = { version = "4", features = ["derive"] }
 debian-packaging = { workspace = true }
-thiserror = "1.0.31"
+digest = "0.10.7"
 fnv = "1.0.7"
-futures = "0.3.21"
-tokio-util = { version = "0.7.3", features = ["compat"] }
-md-5 = "0.10.1"
-sha2 = "0.10.2"
-sha1 = "0.10.1"
-digest = "0.10.3"
-base16ct = { version = "0.1.1", features = [ "alloc" ] }
-walkdir = "2.3.3"
-serde_with = "1.14.0"
+futures = "0.3.31"
+md-5 = "0.10.6"
+reqwest = { version = "0.12.15", features = ["json", "multipart", "stream"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+serde_with = "3.12.0"
+sha1 = "0.10.6"
+sha2 = "0.10.9"
+thiserror = "2.0.12"
+tokio = { version = "1.45.1", features = ["full"] }
+tokio-util = { version = "0.7.15", features = ["compat"] }
+url = "2.5.4"
+walkdir = "2.5.0"
 
 [dev-dependencies]
-anyhow = "1.0.58"
+anyhow = "1.0.98"
 aptly-rest-mock = { path = "../aptly-rest-mock", version = "0.0.1" }
-paste = "1.0.7"
+paste = "1.0.15"

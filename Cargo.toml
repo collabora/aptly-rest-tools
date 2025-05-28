@@ -8,7 +8,8 @@ members = [
   "aptly-rest-mock",
   "aptly-latest-snapshots"
 ]
+resolver = "2"
 
 [workspace.dependencies]
-# We need the fixes in https://github.com/indygreg/linux-packaging-rs/pull/11
-debian-packaging = { git = "https://github.com/indygreg/linux-packaging-rs.git", rev = "0a04d6178876046f2e312702a8821f19d454d0c9" }
+# We need the fixes in https://github.com/indygreg/linux-packaging-rs/pull/27
+debian-packaging = { git = "https://github.com/refi64/linux-packaging-rs.git", rev = "4a6dadef906b099d05d2bf004ed557fbfeae1b10" }
