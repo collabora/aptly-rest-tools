@@ -4,9 +4,65 @@ use aptly_rest::{api::repos, AptlyRest, AptlyRestError};
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use http::StatusCode;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::OutputFormat;
+
+#[derive(Parser, Debug, Clone)]
+pub struct RepoPackagesListOpts {
+    repo: String,
+    #[clap(long, short, default_value("Name"))]
+    query: String,
+    #[clap(long, short)]
+    fail_if_empty: bool,
+    #[clap(long, value_enum, default_value_t)]
+    format: OutputFormat,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RepoPackagesCommand {
+    List(RepoPackagesListOpts),
+}
+
+impl RepoPackagesCommand {
+    pub async fn run(self, aptly: &AptlyRest) -> Result<ExitCode> {
+        match self {
+            RepoPackagesCommand::List(args) => match args.format {
+                OutputFormat::Name => {
+                    let mut keys = aptly
+                        .repo(&args.repo)
+                        .packages()
+                        .query(args.query, false)
+                        .list()
+                        .await?;
+                    if args.fail_if_empty && keys.is_empty() {
+                        return Ok(ExitCode::FAILURE);
+                    }
+
+                    keys.sort();
+                    for key in keys {
+                        println!("{}", key);
+                    }
+                }
+                OutputFormat::Json => {
+                    let results = aptly
+                        .repo(&args.repo)
+                        .packages()
+                        .query(args.query, false)
+                        .detailed()
+                        .await?;
+                    if args.fail_if_empty && results.is_empty() {
+                        return Ok(ExitCode::FAILURE);
+                    }
+
+                    serde_json::to_writer_pretty(&mut stdout(), &results)?;
+                }
+            },
+        }
+
+        Ok(ExitCode::SUCCESS)
+    }
+}
 
 #[derive(Parser, Debug)]
 pub struct RepoCreateOpts {
@@ -60,7 +116,10 @@ pub struct RepoDropOpts {
 pub enum RepoCommand {
     Create(RepoCreateOpts),
     List(RepoListOpts),
+    #[clap(subcommand)]
+    Packages(RepoPackagesCommand),
     TestExists(RepoTestExistsOpts),
+    #[clap(hide(true))]
     Search(RepoSearchOpts),
     Snapshot(RepoSnapshotOpts),
     Clean(RepoCleanOpts),
@@ -99,6 +158,21 @@ impl RepoCommand {
                 }
             }
 
+            RepoCommand::Packages(command) => return command.run(aptly).await,
+
+            RepoCommand::Search(args) => {
+                warn!("'aptlyctl repo search <REPO> <QUERY>' is deprecated");
+                warn!("Use 'aptlyctl repo packages list -q <QUERY> <REPO>' instead");
+                return RepoPackagesCommand::List(RepoPackagesListOpts {
+                    repo: args.repo,
+                    query: args.query,
+                    fail_if_empty: args.exit_code,
+                    format: args.format,
+                })
+                .run(aptly)
+                .await;
+            }
+
             RepoCommand::TestExists(args) => {
                 if let Err(err) = aptly.repo(&args.repo).get().await {
                     if let AptlyRestError::Request(err) = &err {
@@ -110,38 +184,6 @@ impl RepoCommand {
                     return Err(err.into());
                 }
             }
-
-            RepoCommand::Search(args) => match args.format {
-                OutputFormat::Name => {
-                    let mut keys = aptly
-                        .repo(&args.repo)
-                        .packages()
-                        .query(args.query.clone(), false)
-                        .list()
-                        .await?;
-                    if args.exit_code && keys.is_empty() {
-                        return Ok(ExitCode::FAILURE);
-                    }
-
-                    keys.sort();
-                    for key in keys {
-                        println!("{}", key);
-                    }
-                }
-                OutputFormat::Json => {
-                    let results = aptly
-                        .repo(&args.repo)
-                        .packages()
-                        .query(args.query.clone(), false)
-                        .detailed()
-                        .await?;
-                    if args.exit_code && results.is_empty() {
-                        return Ok(ExitCode::FAILURE);
-                    }
-
-                    serde_json::to_writer_pretty(&mut stdout(), &results)?;
-                }
-            },
 
             RepoCommand::Snapshot(args) => {
                 let snapshot = aptly
