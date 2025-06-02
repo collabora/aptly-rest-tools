@@ -244,15 +244,17 @@ impl RepoCommand {
             }
 
             RepoCommand::Clean(args) => {
-                info!("Finding packages to delete...");
-                let packages = aptly.repo(&args.repo).packages().list().await?;
-                info!("Deleting {} package(s)...", packages.len());
-                aptly
-                    .repo(&args.repo)
-                    .packages()
-                    .delete(packages.iter())
-                    .await?;
-                info!("Deletion complete");
+                warn!("'aptlyctl repo clean <REPO>' is deprecated");
+                warn!("Use 'aptlyctl repo packages delete -q Name <REPO>' instead");
+
+                return RepoPackagesCommand::Delete(RepoPackagesDeleteOpts {
+                    repo: args.repo,
+                    keys: vec![],
+                    queries: vec!["Name".to_owned()],
+                    dry_run: false,
+                })
+                .run(aptly)
+                .await;
             }
 
             RepoCommand::Drop(args) => {
