@@ -262,7 +262,7 @@ fn changes_checksums_line(line: &str) -> Result<(String, u64, String), ChangesEr
 
 #[derive(thiserror::Error, Debug)]
 pub enum ChangesFileToAptlyKeyError {
-    #[error("Not a package type known to aplty")]
+    #[error("Not a package type known to aptly")]
     UnsupportPackageType,
     #[error("Invalid package name in info")]
     InvalidPackageFile(#[from] ChangesFileNameParseError),
