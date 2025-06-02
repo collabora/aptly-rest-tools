@@ -1,6 +1,6 @@
 use std::{io::stdout, process::ExitCode};
 
-use aptly_rest::{api::repos, AptlyRest, AptlyRestError};
+use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError};
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use http::StatusCode;
@@ -19,9 +19,21 @@ pub struct RepoPackagesListOpts {
     format: OutputFormat,
 }
 
+#[derive(Parser, Debug, Clone)]
+pub struct RepoPackagesDeleteOpts {
+    repo: String,
+    #[clap(long = "key", short, required_unless_present("queries"))]
+    keys: Vec<AptlyKey>,
+    #[clap(long = "query", short, required_unless_present("keys"))]
+    queries: Vec<String>,
+    #[clap(long, short = 'n', default_value_t)]
+    dry_run: bool,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum RepoPackagesCommand {
     List(RepoPackagesListOpts),
+    Delete(RepoPackagesDeleteOpts),
 }
 
 impl RepoPackagesCommand {
@@ -58,6 +70,40 @@ impl RepoPackagesCommand {
                     serde_json::to_writer_pretty(&mut stdout(), &results)?;
                 }
             },
+            RepoPackagesCommand::Delete(mut args) => {
+                for query in args.queries {
+                    info!("Finding packages for query '{query}'...");
+                    let keys = aptly
+                        .repo(&args.repo)
+                        .packages()
+                        .query(query, false)
+                        .list()
+                        .await?;
+                    info!("Query found {} package(s)", keys.len());
+                    for key in &keys {
+                        info!("{key}");
+                    }
+                    args.keys.extend(keys.into_iter());
+                }
+
+                if args.keys.is_empty() {
+                    info!("No packages to delete");
+                    return Ok(ExitCode::SUCCESS);
+                }
+
+                if args.dry_run {
+                    info!("Would delete {} package(s)", args.keys.len());
+                } else {
+                    info!("Deleting {} package(s)...", args.keys.len());
+
+                    aptly
+                        .repo(&args.repo)
+                        .packages()
+                        .delete(args.keys.iter())
+                        .await?;
+                    info!("Deletion complete");
+                }
+            }
         }
 
         Ok(ExitCode::SUCCESS)
