@@ -68,14 +68,14 @@ pub enum RepoCommand {
 }
 
 impl RepoCommand {
-    pub async fn run(&self, aptly: &AptlyRest) -> Result<ExitCode> {
+    pub async fn run(self, aptly: &AptlyRest) -> Result<ExitCode> {
         match self {
             RepoCommand::Create(args) => {
                 let repo = aptly
                     .create_repo(
-                        &repos::Repo::new(args.repo.clone())
-                            .with_component(args.component.clone())
-                            .with_distribution(args.distribution.clone()),
+                        &repos::Repo::new(args.repo)
+                            .with_component(args.component)
+                            .with_distribution(args.distribution),
                     )
                     .await?;
                 debug!(?repo);
