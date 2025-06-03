@@ -6,6 +6,7 @@ use color_eyre::Result;
 use publish::PublishCommand;
 use repo::RepoCommand;
 use snapshot::SnapshotCommand;
+use tools::ToolsCommand;
 use tracing::{info, metadata::LevelFilter};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
@@ -13,6 +14,7 @@ use tracing_subscriber::prelude::*;
 mod publish;
 mod repo;
 mod snapshot;
+mod tools;
 
 #[derive(ValueEnum, Clone, Copy, Debug, Default)]
 enum OutputFormat {
@@ -34,6 +36,10 @@ enum Command {
     Snapshot {
         #[clap(subcommand)]
         command: SnapshotCommand,
+    },
+    Tools {
+        #[clap(subcommand)]
+        command: ToolsCommand,
     },
     DbCleanup,
 }
@@ -73,6 +79,7 @@ async fn main() -> Result<ExitCode> {
         Command::Repo { command } => command.run(&aptly).await,
         Command::Publish { command } => command.run(&aptly).await,
         Command::Snapshot { command } => command.run(&aptly).await,
+        Command::Tools { command } => command.run().await,
         Command::DbCleanup => {
             aptly.db_cleanup().await?;
             info!("Ran database cleanup");

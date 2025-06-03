@@ -98,12 +98,12 @@ pub enum PublishCommand {
 }
 
 impl PublishCommand {
-    pub async fn run(&self, aptly: &AptlyRest) -> Result<ExitCode> {
+    pub async fn run(self, aptly: &AptlyRest) -> Result<ExitCode> {
         match self {
             PublishCommand::Create(args) => {
-                let signing = if let Some(key) = &args.gpg_key {
+                let signing = if let Some(key) = args.gpg_key {
                     publish::Signing::Enabled(publish::SigningOptions {
-                        gpg_key: Some(key.clone()),
+                        gpg_key: Some(key),
                         ..Default::default()
                     })
                 } else {
@@ -116,8 +116,8 @@ impl PublishCommand {
                         args.kind.into(),
                         &args.sources,
                         &publish::PublishOptions {
-                            architectures: args.architectures.clone(),
-                            distribution: args.distribution.clone(),
+                            architectures: args.architectures,
+                            distribution: args.distribution,
                             signing: Some(signing),
                             skip_bz2: args.skip_bz2,
                             skip_contents: args.skip_contents,
@@ -158,9 +158,9 @@ impl PublishCommand {
                 }
             }
             PublishCommand::Update(args) => {
-                let signing = if let Some(key) = &args.gpg_key {
+                let signing = if let Some(key) = args.gpg_key {
                     publish::Signing::Enabled(publish::SigningOptions {
-                        gpg_key: Some(key.clone()),
+                        gpg_key: Some(key),
                         ..Default::default()
                     })
                 } else {

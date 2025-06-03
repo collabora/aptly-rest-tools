@@ -34,7 +34,7 @@ pub enum SnapshotCommand {
 }
 
 impl SnapshotCommand {
-    pub async fn run(&self, aptly: &AptlyRest) -> Result<ExitCode> {
+    pub async fn run(self, aptly: &AptlyRest) -> Result<ExitCode> {
         match self {
             SnapshotCommand::List(args) => {
                 let snapshots = aptly.snapshots().await?;
