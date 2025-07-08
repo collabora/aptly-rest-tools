@@ -71,15 +71,21 @@ fn origin_dsc_for_aptly_dsc(dsc: &Dsc) -> Result<OriginDsc> {
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct ScanOptions {
+    pub include_binaries: bool,
+    pub include_sources: bool,
+}
+
 #[tracing::instrument]
-async fn scan_content(path: PathBuf) -> Result<OriginContent> {
+async fn scan_content(path: PathBuf, options: &ScanOptions) -> Result<OriginContent> {
     let mut builder = OriginContentBuilder::new();
 
     let mut scanner = Scanner::new(path);
 
     while let Some(control) = scanner.try_next().await? {
         match control {
-            scanner::Found::Changes(changes) => {
+            scanner::Found::Changes(changes) if options.include_binaries => {
                 for f in changes.files()? {
                     if !f.name.ends_with(".deb") && !f.name.ends_with(".udeb") {
                         continue;
@@ -88,9 +94,10 @@ async fn scan_content(path: PathBuf) -> Result<OriginContent> {
                     builder.add_deb(origin_deb_for_changes_file(&changes, &f)?);
                 }
             }
-            scanner::Found::Dsc(dsc) => {
+            scanner::Found::Dsc(dsc) if options.include_sources => {
                 builder.add_dsc(origin_dsc_for_aptly_dsc(&dsc)?);
             }
+            _ => {}
         }
     }
 
@@ -103,7 +110,8 @@ pub async fn sync(
     aptly: AptlyRest,
     aptly_content: AptlyContent,
     pool_packages: PoolPackagesCache,
+    scan_options: &ScanOptions,
 ) -> Result<SyncActions> {
-    let origin_content = scan_content(obs_path).await?;
+    let origin_content = scan_content(obs_path, scan_options).await?;
     sync2aptly::sync(origin_content, aptly, aptly_content, pool_packages).await
 }
