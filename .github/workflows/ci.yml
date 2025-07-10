@@ -55,8 +55,11 @@ jobs:
       contents: read
       packages: write
 
-    env:
-      IMAGE_NAME: latest-snapshots
+    strategy:
+      matrix:
+        include:
+          - IMAGE_NAME: latest-snapshots
+          - IMAGE_NAME: cli
 
     steps:
       - uses: actions/checkout@v3
@@ -82,14 +85,14 @@ jobs:
             type=ref,event=pr
           images: |
             # this one is just for backward compatibility (April 2025)
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+            name=${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }},enable=${{ matrix.IMAGE_NAME == 'latest-snapshots' }}
             # use this one
-            ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ env.IMAGE_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.IMAGE_NAME }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: Dockerfile.${{ env.IMAGE_NAME }}
+          file: Dockerfile.${{ matrix.IMAGE_NAME }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
