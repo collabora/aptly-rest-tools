@@ -171,6 +171,10 @@ async fn run_test<P: AsRef<Path>>(path: P, repo: &str) {
         aptly.clone(),
         aptly_contents,
         PoolPackagesCache::new(aptly.clone()),
+        &obs2aptly::ScanOptions {
+            include_binaries: true,
+            include_sources: true,
+        },
     )
     .await
     .unwrap();

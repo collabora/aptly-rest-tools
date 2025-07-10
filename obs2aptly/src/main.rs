@@ -8,6 +8,12 @@ use tracing::metadata::LevelFilter;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, clap::ValueEnum)]
+enum FilterKind {
+    Sources,
+    Binaries,
+}
+
 #[derive(Parser, Debug)]
 struct Opts {
     /// Url for the aptly rest api endpoint
@@ -28,6 +34,9 @@ struct Opts {
     /// Maximum number of parallel uploads
     #[clap(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..))]
     max_parallel_uploads: u8,
+    /// Only sync files of the given type
+    #[clap(long)]
+    only: Option<FilterKind>,
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
@@ -49,7 +58,23 @@ async fn main() -> Result<()> {
 
     let aptly_contents = AptlyContent::new_from_aptly(&aptly, opts.aptly_repo).await?;
     let pool_packages = PoolPackagesCache::new(aptly.clone());
-    let actions = obs2aptly::sync(opts.obs_repo, aptly, aptly_contents, pool_packages).await?;
+    let actions = obs2aptly::sync(
+        opts.obs_repo,
+        aptly,
+        aptly_contents,
+        pool_packages,
+        &obs2aptly::ScanOptions {
+            include_binaries: opts
+                .only
+                .as_ref()
+                .is_none_or(|only| *only == FilterKind::Binaries),
+            include_sources: opts
+                .only
+                .as_ref()
+                .is_none_or(|only| *only == FilterKind::Sources),
+        },
+    )
+    .await?;
     if !opts.dry_run {
         actions
             .apply(
