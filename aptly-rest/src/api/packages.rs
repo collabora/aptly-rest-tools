@@ -55,7 +55,7 @@ impl PackagesApi<'_> {
         self.do_detailed(None, false).await
     }
 
-    pub fn query(&self, query: String, with_deps: bool) -> PackagesApiQuery {
+    pub fn query(&self, query: String, with_deps: bool) -> PackagesApiQuery<'_> {
         PackagesApiQuery {
             parent: self,
             query,

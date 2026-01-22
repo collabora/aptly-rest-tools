@@ -36,7 +36,7 @@ pub struct FilesApi<'a> {
 }
 
 impl FilesApi<'_> {
-    pub fn directory(&self, directory: String) -> FilesApiDirectory {
+    pub fn directory(&self, directory: String) -> FilesApiDirectory<'_> {
         FilesApiDirectory {
             files: self,
             directory,
