@@ -175,7 +175,7 @@ impl ChangesFile {
         }
     }
 
-    pub fn parse_name(&self) -> Result<ChangesFileInfo, ChangesFileNameParseError> {
+    pub fn parse_name(&self) -> Result<ChangesFileInfo<'_>, ChangesFileNameParseError> {
         let path = Path::new(&self.name);
         let stem = path
             .file_stem()

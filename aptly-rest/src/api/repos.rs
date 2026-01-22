@@ -11,11 +11,11 @@ pub struct RepoApi<'a> {
 }
 
 impl RepoApi<'_> {
-    pub fn packages(&self) -> RepoApiPackages {
+    pub fn packages(&self) -> RepoApiPackages<'_> {
         RepoApiPackages { repo: self }
     }
 
-    pub fn files(&self) -> RepoApiFiles {
+    pub fn files(&self) -> RepoApiFiles<'_> {
         RepoApiFiles { repo: self }
     }
 
@@ -120,7 +120,7 @@ impl RepoApiPackages<'_> {
         self.do_detailed(None, false).await
     }
 
-    pub fn query(&self, query: String, with_deps: bool) -> RepoApiPackagesQuery {
+    pub fn query(&self, query: String, with_deps: bool) -> RepoApiPackagesQuery<'_> {
         RepoApiPackagesQuery {
             parent: self,
             query,

@@ -81,22 +81,22 @@ impl AptlyRest {
         self.post_body(url, repo).await
     }
 
-    pub fn repo<S: Into<String>>(&self, name: S) -> RepoApi {
+    pub fn repo<S: Into<String>>(&self, name: S) -> RepoApi<'_> {
         RepoApi {
             aptly: self,
             name: name.into(),
         }
     }
 
-    pub fn files(&self) -> FilesApi {
+    pub fn files(&self) -> FilesApi<'_> {
         FilesApi { aptly: self }
     }
 
-    pub fn packages(&self) -> PackagesApi {
+    pub fn packages(&self) -> PackagesApi<'_> {
         PackagesApi { aptly: self }
     }
 
-    pub fn publish_prefix<S: Into<String>>(&self, prefix: S) -> PublishApi {
+    pub fn publish_prefix<S: Into<String>>(&self, prefix: S) -> PublishApi<'_> {
         PublishApi {
             aptly: self,
             prefix: prefix.into(),
@@ -108,7 +108,7 @@ impl AptlyRest {
         self.get(url).await
     }
 
-    pub fn snapshot<S: Into<String>>(&self, name: S) -> SnapshotApi {
+    pub fn snapshot<S: Into<String>>(&self, name: S) -> SnapshotApi<'_> {
         SnapshotApi {
             aptly: self,
             name: name.into(),

@@ -15,7 +15,7 @@ impl PublishApi<'_> {
         self.aptly.url(&["api", "publish", &self.prefix])
     }
 
-    pub fn distribution<S: Into<String>>(&self, distribution: S) -> DistributionApi {
+    pub fn distribution<S: Into<String>>(&self, distribution: S) -> DistributionApi<'_> {
         DistributionApi {
             publish: self,
             distribution: distribution.into(),
