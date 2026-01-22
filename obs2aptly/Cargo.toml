@@ -18,7 +18,7 @@ sync2aptly = { path = "../sync2aptly" }
 tokio = { version = "1.45.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-error = "0.2.1"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3.20"
 url = "2.5.4"
 
 [dev-dependencies]
