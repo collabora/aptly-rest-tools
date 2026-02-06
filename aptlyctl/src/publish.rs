@@ -148,6 +148,10 @@ impl PublishCommand {
                         serde_json::to_writer_pretty(&mut stdout(), &publishes)?;
                         println!();
                     }
+                    OutputFormat::Yaml => {
+                        serde_saphyr::to_io_writer(&mut stdout(), &publishes)?;
+                        println!();
+                    }
                 }
             }
             PublishCommand::TestExists(args) => {
