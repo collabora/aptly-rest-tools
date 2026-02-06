@@ -1,4 +1,9 @@
-use std::{io::stdout, process::ExitCode};
+use std::{
+    fs,
+    io::{stdin, stdout, Read},
+    path::PathBuf,
+    process::ExitCode,
+};
 
 use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError};
 use clap::{Parser, Subcommand};
@@ -171,10 +176,23 @@ pub struct RepoDropOpts {
     force: bool,
 }
 
+#[derive(Parser, Debug)]
+pub struct RepoImportOpts {
+    /// Path to the file containing repository definitions (reads from stdin if not provided)
+    file: Option<PathBuf>,
+    /// Skip repositories that already exist
+    #[clap(long)]
+    skip_existing: bool,
+    /// Input format (json or yaml). If not specified, will be inferred from file extension
+    #[clap(long, value_enum)]
+    format: Option<OutputFormat>,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum RepoCommand {
     Create(RepoCreateOpts),
     List(RepoListOpts),
+    Import(RepoImportOpts),
     #[clap(subcommand)]
     Packages(RepoPackagesCommand),
     TestExists(RepoTestExistsOpts),
@@ -218,6 +236,79 @@ impl RepoCommand {
                         serde_yaml::to_writer(&mut stdout(), &repos)?;
                     }
                 }
+            }
+
+            RepoCommand::Import(args) => {
+                let content = if let Some(file) = &args.file {
+                    fs::read(file)?
+                } else {
+                    let mut buffer = Vec::<u8>::new();
+                    stdin().read_to_end(&mut buffer)?;
+                    buffer
+                };
+
+                let repos: Vec<repos::Repo> = match args.format {
+                    Some(OutputFormat::Json) => serde_json::from_slice(&content)?,
+                    Some(OutputFormat::Yaml) => serde_yaml::from_slice(&content)?,
+                    Some(OutputFormat::Name) => {
+                        return Err(color_eyre::eyre::eyre!(
+                            "Name format is not supported for import"
+                        ));
+                    }
+                    None => {
+                        // Infer from file extension
+                        if let Some(file) = &args.file {
+                            match file.extension().and_then(|e| e.to_str()) {
+                                Some("yaml" | "yml") => serde_yaml::from_slice(&content)?,
+                                Some("json") => serde_json::from_slice(&content)?,
+                                _ => {
+                                    return Err(color_eyre::eyre::eyre!("Unsupported file format"));
+                                }
+                            }
+                        } else {
+                            // Parse stdin always as JSON
+                            serde_json::from_slice(&content)?
+                        }
+                    }
+                };
+
+                let existing: std::collections::HashSet<_> = aptly
+                    .repos()
+                    .await?
+                    .into_iter()
+                    .map(|r| r.name().to_owned())
+                    .collect();
+
+                let conflicts: Vec<_> = repos
+                    .iter()
+                    .filter(|r| existing.contains(r.name()))
+                    .collect();
+
+                if !conflicts.is_empty() && !args.skip_existing {
+                    for repo in &conflicts {
+                        warn!("Repo '{}' already exists", repo.name());
+                    }
+                    return Err(color_eyre::eyre::eyre!(
+                        "{} repos already exist; use --skip-existing to skip them",
+                        conflicts.len()
+                    ));
+                }
+
+                let mut created = 0;
+                let mut skipped = 0;
+
+                for repo in repos {
+                    if existing.contains(repo.name()) {
+                        info!("Repo '{}' already exists, skipping", repo.name());
+                        skipped += 1;
+                    } else {
+                        aptly.create_repo(&repo).await?;
+                        info!("Created repo '{}'", repo.name());
+                        created += 1;
+                    }
+                }
+
+                info!("Import complete: {} created, {} skipped", created, skipped);
             }
 
             RepoCommand::Packages(command) => return command.run(aptly).await,
