@@ -50,6 +50,9 @@ impl SnapshotCommand {
                         serde_json::to_writer_pretty(&mut stdout(), &snapshots)?;
                         println!();
                     }
+                    OutputFormat::Yaml => {
+                        serde_yaml::to_writer(&mut stdout(), &snapshots)?;
+                    }
                 }
             }
 

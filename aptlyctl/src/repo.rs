@@ -69,6 +69,19 @@ impl RepoPackagesCommand {
 
                     serde_json::to_writer_pretty(&mut stdout(), &results)?;
                 }
+                OutputFormat::Yaml => {
+                    let results = aptly
+                        .repo(&args.repo)
+                        .packages()
+                        .query(args.query, false)
+                        .detailed()
+                        .await?;
+                    if args.fail_if_empty && results.is_empty() {
+                        return Ok(ExitCode::FAILURE);
+                    }
+
+                    serde_yaml::to_writer(&mut stdout(), &results)?;
+                }
             },
             RepoPackagesCommand::Delete(mut args) => {
                 for query in args.queries {
@@ -200,6 +213,9 @@ impl RepoCommand {
                     OutputFormat::Json => {
                         serde_json::to_writer_pretty(&mut stdout(), &repos)?;
                         println!();
+                    }
+                    OutputFormat::Yaml => {
+                        serde_yaml::to_writer(&mut stdout(), &repos)?;
                     }
                 }
             }

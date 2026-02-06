@@ -146,6 +146,9 @@ impl PublishCommand {
                         serde_json::to_writer_pretty(&mut stdout(), &publishes)?;
                         println!();
                     }
+                    OutputFormat::Yaml => {
+                        serde_yaml::to_writer(&mut stdout(), &publishes)?;
+                    }
                 }
             }
             PublishCommand::TestExists(args) => {
