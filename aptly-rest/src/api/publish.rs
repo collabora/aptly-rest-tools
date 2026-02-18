@@ -195,6 +195,8 @@ pub struct PublishedRepo {
     #[serde_as(as = "YesNoBool")]
     but_automatic_upgrades: bool,
     acquire_by_hash: bool,
+    #[serde(default)]
+    skip_contents: bool,
 }
 
 impl PublishedRepo {
@@ -240,6 +242,10 @@ impl PublishedRepo {
 
     pub fn acquire_by_hash(&self) -> bool {
         self.acquire_by_hash
+    }
+
+    pub fn skip_contents(&self) -> bool {
+        self.skip_contents
     }
 }
 
