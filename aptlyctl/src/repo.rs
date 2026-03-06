@@ -1,9 +1,15 @@
-use std::{io::stdout, process::ExitCode};
+use std::{io::stdout, path::PathBuf, process::ExitCode};
 
 use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError};
 use clap::{Parser, Subcommand};
-use color_eyre::Result;
+use color_eyre::{eyre::Context, Result};
+use debian_packaging::{
+    package_version::PackageVersion,
+    repository::{builder::DebPackageReference, release::ChecksumType},
+};
 use http::StatusCode;
+use sync2aptly::PackageName;
+use tokio::fs::File;
 use tracing::{debug, info, warn};
 
 use crate::OutputFormat;
@@ -30,8 +36,29 @@ pub struct RepoPackagesDeleteOpts {
     dry_run: bool,
 }
 
+#[derive(Parser, Debug, Clone)]
+pub struct RepoPackageUpload {
+    repo: String,
+    path: PathBuf,
+    package: String,
+    version: String,
+    architecture: String,
+    source: String,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct RepoPackageSync {
+    #[clap(short, long, default_value_t)]
+    dry_run: bool,
+    src_repo: String,
+    dst_repo: String,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum RepoPackagesCommand {
+    Upload(RepoPackageUpload),
+    // Sync between source and destination repo
+    Sync(RepoPackageSync),
     List(RepoPackagesListOpts),
     Delete(RepoPackagesDeleteOpts),
 }
@@ -102,6 +129,103 @@ impl RepoPackagesCommand {
                         .delete(args.keys.iter())
                         .await?;
                     info!("Deletion complete");
+                }
+            }
+            RepoPackagesCommand::Upload(args) => {
+                let pool_packages = sync2aptly::PoolPackagesCache::new(aptly.clone());
+
+                //let mut actions =
+                //    sync2aptly::SyncActions::new(aptly.clone(), args.repo, pool_packages);
+
+                let location = sync2aptly::OriginLocation::Path(args.path.clone());
+                let version =
+                    sync2aptly::LazyVersion::with_value(PackageVersion::parse(&args.version)?);
+                let basename = args.path.file_name().unwrap().to_string_lossy().to_string();
+                let deb = tokio::fs::read(&args.path).await?;
+                let deb = debian_packaging::repository::builder::InMemoryDebFile::new(
+                    basename.clone(),
+                    deb,
+                );
+                let builder = aptly_rest::key::AptlyHashBuilder::default().file(
+                    &aptly_rest::key::AptlyHashFile {
+                        basename: &basename,
+                        size: deb.deb_size_bytes().unwrap(),
+                        md5: &deb.deb_digest(ChecksumType::Md5)?.digest_hex(),
+                        sha1: &deb.deb_digest(ChecksumType::Sha1)?.digest_hex(),
+                        sha256: &deb.deb_digest(ChecksumType::Sha256)?.digest_hex(),
+                    },
+                );
+
+                let aptly_hash = builder.finish();
+
+                let deb = sync2aptly::OriginDeb {
+                    package: PackageName::new(args.package),
+                    version,
+                    architecture: args.architecture,
+                    location,
+                    from_source: PackageName::new(args.source),
+                    aptly_hash,
+                };
+
+                /*
+                actions.add_deb(&deb)?;
+                */
+
+                let mut content_builder = sync2aptly::OriginContentBuilder::new();
+                content_builder.add_deb(deb);
+                let origin = content_builder.build();
+                let aptly_content =
+                    sync2aptly::AptlyContent::new_from_aptly(aptly, args.repo).await?;
+
+                let actions =
+                    sync2aptly::sync(origin, aptly.clone(), aptly_content, pool_packages).await?;
+                actions
+                    .apply("aptlyctl", &sync2aptly::UploadOptions::default())
+                    .await?;
+            }
+            RepoPackagesCommand::Sync(s) => {
+                let src_keys = aptly
+                    .repo(&s.src_repo)
+                    .packages()
+                    .list()
+                    .await
+                    .context("Failed to list source keys")?;
+                let dst_keys = aptly
+                    .repo(&s.dst_repo)
+                    .packages()
+                    .list()
+                    .await
+                    .context("Failed to list destination keys")?;
+
+                // Add everything in src not in dst
+                let to_add: Vec<_> = src_keys.iter().filter(|k| !dst_keys.contains(k)).collect();
+                // Remove everything that's in dst but not src
+                let to_remove: Vec<_> = dst_keys.iter().filter(|k| !src_keys.contains(k)).collect();
+
+                for k in &to_add {
+                    println!("Adding: {k}");
+                }
+
+                if !s.dry_run {
+                    aptly
+                        .repo(&s.dst_repo)
+                        .packages()
+                        .add(to_add)
+                        .await
+                        .context("Failed to add packages")?;
+                }
+
+                for k in &to_remove {
+                    println!("Removing: {k}");
+                }
+
+                if !s.dry_run {
+                    aptly
+                        .repo(&s.dst_repo)
+                        .packages()
+                        .delete(to_remove)
+                        .await
+                        .context("Failed to remove packages")?;
                 }
             }
         }

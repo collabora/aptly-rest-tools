@@ -36,7 +36,7 @@ pub struct PackageName {
 }
 
 impl PackageName {
-    fn new(name: String) -> Self {
+    pub fn new(name: String) -> Self {
         Self {
             name: Arc::new(name),
         }
@@ -568,6 +568,8 @@ impl Syncer for BinaryInDepSyncer {
         }
 
         let origin_newest = &origin.newest()?.version.get()?;
+        // HACK HACK don't drop other packages
+        /*
         for a in aptly.keys().filter(|key| !keep_in_aptly.contains(key)) {
             if a.version() < origin_newest {
                 actions.remove_aptly(a.clone());
@@ -575,6 +577,7 @@ impl Syncer for BinaryInDepSyncer {
                 debug!("Keeping {} as it was newer than anything in origin", a);
             }
         }
+        */
 
         Ok(())
     }
@@ -828,9 +831,14 @@ pub struct AddDebOptions {
     pub match_existing: MatchPoolPackageBy,
 }
 
-#[derive(Default)]
 pub struct UploadOptions {
     pub max_parallel: u8,
+}
+
+impl Default for UploadOptions {
+    fn default() -> Self {
+        Self { max_parallel: 1 }
+    }
 }
 
 fn is_reqwest_error_retriable(e: &reqwest::Error) -> bool {
@@ -1173,6 +1181,7 @@ impl SyncActions {
             info!("Complete.");
         }
 
+        /*
         if !to_remove.is_empty() {
             info!("Deleting {} package(s) from repository...", to_remove.len());
 
@@ -1184,6 +1193,7 @@ impl SyncActions {
 
             info!("Deletion complete.");
         }
+        */
 
         Ok(())
     }

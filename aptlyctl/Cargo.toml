@@ -11,8 +11,10 @@ aptly-rest = { path = "../aptly-rest", version = "0.1.0" }
 aptly-rest-mock = { version = "0.0.1", path = "../aptly-rest-mock" }
 clap = { version = "4", features = ["derive", "env"] }
 color-eyre = "0.6.4"
+debian-packaging = { workspace = true }
 http = "1.3.1"
 serde_json = "1.0.140"
+sync2aptly = { version = "0.1.0", path = "../sync2aptly" }
 tokio = { version = "1.45.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-error = "0.2.1"
