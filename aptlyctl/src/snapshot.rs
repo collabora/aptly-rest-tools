@@ -43,7 +43,7 @@ impl SnapshotCommand {
                         let mut names: Vec<_> = snapshots.iter().map(|s| s.name()).collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {

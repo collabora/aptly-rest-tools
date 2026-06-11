@@ -63,7 +63,7 @@ impl RepoPackagesCommand {
 
                     keys.sort();
                     for key in keys {
-                        println!("{}", key);
+                        println!("{key}");
                     }
                 }
                 OutputFormat::Json | OutputFormat::Yaml => {
@@ -270,7 +270,7 @@ impl RepoCommand {
                         let mut names: Vec<_> = repos.iter().map(|r| r.name()).collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {

@@ -141,7 +141,7 @@ impl PublishCommand {
                             .collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {
