@@ -115,7 +115,7 @@ impl AptlyRestMock {
     /// and the repository should be part of the repositories
     pub fn repo_add_package(&self, repo: &str, key: String) {
         let mut inner = self.inner.write().unwrap();
-        assert!(inner.pool.has_package(&key), "{} not found in pool", key);
+        assert!(inner.pool.has_package(&key), "{key} not found in pool");
         inner.repositories.add_package(repo, key);
     }
 
