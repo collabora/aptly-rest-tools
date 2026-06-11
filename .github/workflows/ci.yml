@@ -40,7 +40,7 @@ jobs:
         with:
             components: clippy
             # Pin clippy, so that new lints don't break the build.
-            toolchain: '1.87.0'
+            toolchain: '1.88.0'
       - run: cargo clippy --all-targets -- -D warnings
 
   docker-image:
