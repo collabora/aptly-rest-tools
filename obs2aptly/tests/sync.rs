@@ -100,13 +100,13 @@ fn compare_actions(
         if let Some((i, _)) = found {
             expected.swap_remove(i);
         } else {
-            eprintln!("- Unexpected action: {:?}", action);
+            eprintln!("- Unexpected action: {action:?}");
             r = Err(eyre!("Actions didn't match"));
         }
     }
 
     for action in expected {
-        eprintln!("- Missing action: {:?}", action);
+        eprintln!("- Missing action: {action:?}");
         r = Err(eyre!("Actions didn't match"));
     }
 
