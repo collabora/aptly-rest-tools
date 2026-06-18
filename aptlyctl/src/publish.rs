@@ -75,6 +75,8 @@ pub struct PublishUpdateOpts {
     #[clap(long)]
     skip_bz2: bool,
     #[clap(long)]
+    skip_cleanup: bool,
+    #[clap(long)]
     skip_contents: bool,
 }
 
@@ -172,6 +174,7 @@ impl PublishCommand {
                     .distribution(&args.distribution)
                     .update(&publish::UpdateOptions {
                         skip_bz2: args.skip_bz2,
+                        skip_cleanup: args.skip_cleanup,
                         skip_contents: args.skip_contents,
                         signing: Some(signing),
                         ..Default::default()
