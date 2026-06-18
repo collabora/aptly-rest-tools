@@ -25,6 +25,7 @@ pub const APTLY_VERSION: &str = "1.4.0+187+g15f2c97d";
 struct Inner {
     pool: Pool,
     repositories: Repositories,
+    cleanup_running: bool,
 }
 
 #[derive(Clone)]
@@ -38,6 +39,7 @@ impl AptlyRestMock {
         let inner = Arc::new(RwLock::new(Inner {
             pool: Pool::new(),
             repositories: Repositories::new(),
+            cleanup_running: false,
         }));
         let server = AptlyRestMock {
             server: Arc::new(MockServer::start().await),
@@ -68,6 +70,12 @@ impl AptlyRestMock {
         Mock::given(method("GET"))
             .and(path_regex("api/repos/[^/]*/packages"))
             .respond_with(api::repos::ReposPackagesResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("api/db/cleanup"))
+            .respond_with(api::db::DbCleanupResponder::new(server.clone()))
             .mount(&server.server)
             .await;
 
