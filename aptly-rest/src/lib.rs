@@ -22,12 +22,40 @@ pub enum AptlyRestError {
     Request(#[from] reqwest::Error),
     #[error("Invalid authentication token {0}")]
     InvalidAuthToken(#[from] header::InvalidHeaderValue),
+    #[error("{status}: {message}")]
+    AptlyError {
+        status: reqwest::StatusCode,
+        message: String,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Task {
+    #[serde(rename = "ID")]
+    pub id: i64,
+    pub name: String,
+    pub state: i32,
+}
+
+impl std::fmt::Display for Task {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Task Id: {} ({})", self.id, self.name)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum TaskOr<T> {
+    Task(Task),
+    Value(T),
 }
 
 #[derive(Debug, Clone)]
 pub struct AptlyRest {
     client: reqwest::Client,
     url: Url,
+    pub async_mode: bool,
 }
 
 impl AptlyRest {
@@ -35,6 +63,7 @@ impl AptlyRest {
         Self {
             client: reqwest::Client::new(),
             url,
+            async_mode: false,
         }
     }
 
@@ -47,6 +76,7 @@ impl AptlyRest {
                 .default_headers(headers)
                 .build()?,
             url,
+            async_mode: false,
         })
     }
 
@@ -65,10 +95,9 @@ impl AptlyRest {
         Ok(v.version)
     }
 
-    pub async fn db_cleanup(&self) -> Result<(), AptlyRestError> {
+    pub async fn db_cleanup(&self) -> Result<TaskOr<serde_json::Value>, AptlyRestError> {
         let url = self.url(&["api", "db", "cleanup"]);
-        self.post::<()>(url).await?;
-        Ok(())
+        self.post(url).await
     }
 
     pub async fn repos(&self) -> Result<Vec<Repo>, AptlyRestError> {
@@ -170,7 +199,25 @@ impl AptlyRest {
         &self,
         req: reqwest::RequestBuilder,
     ) -> Result<reqwest::Response, AptlyRestError> {
-        Ok(req.send().await?.error_for_status()?)
+        let req = if self.async_mode {
+            req.query(&[("_async", "true")])
+        } else {
+            req
+        };
+        let response = req.send().await?;
+        if self.async_mode && response.status() == reqwest::StatusCode::CONFLICT {
+            let message = response
+                .json::<serde_json::Value>()
+                .await
+                .ok()
+                .and_then(|v| v["error"].as_str().map(String::from))
+                .unwrap_or_else(|| "Conflict".to_string());
+            return Err(AptlyRestError::AptlyError {
+                status: reqwest::StatusCode::CONFLICT,
+                message,
+            });
+        }
+        Ok(response.error_for_status()?)
     }
 
     async fn json_request<T>(&self, req: reqwest::RequestBuilder) -> Result<T, AptlyRestError>

@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use aptly_rest::AptlyRest;
+use aptly_rest::{AptlyRest, TaskOr};
 use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::Result;
 use publish::PublishCommand;
@@ -59,6 +59,9 @@ struct Opts {
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]
     api_token: Option<String>,
+    /// Run the operation asynchronously on the server
+    #[clap(long = "async")]
+    async_mode: bool,
 }
 
 #[tokio::main]
@@ -69,11 +72,12 @@ async fn main() -> Result<ExitCode> {
         .init();
     color_eyre::install().unwrap();
     let opts = Opts::parse();
-    let aptly = if let Some(token) = opts.api_token {
+    let mut aptly = if let Some(token) = opts.api_token {
         AptlyRest::new_with_token(opts.api_url, &token)?
     } else {
         AptlyRest::new(opts.api_url)
     };
+    aptly.async_mode = opts.async_mode;
 
     match opts.command {
         Command::Repo { command } => command.run(&aptly).await,
@@ -81,8 +85,15 @@ async fn main() -> Result<ExitCode> {
         Command::Snapshot { command } => command.run(&aptly).await,
         Command::Tools { command } => command.run().await,
         Command::DbCleanup => {
-            aptly.db_cleanup().await?;
-            info!("Ran database cleanup");
+            let result = aptly.db_cleanup().await?;
+            match result {
+                TaskOr::Value(_) => {
+                    info!("Ran database cleanup");
+                }
+                TaskOr::Task(task) => {
+                    info!("{task}");
+                }
+            }
             Ok(ExitCode::SUCCESS)
         }
     }

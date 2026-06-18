@@ -1,7 +1,7 @@
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
-use crate::AptlyRestError;
+use crate::{AptlyRestError, TaskOr};
 
 #[derive(Debug, Clone)]
 pub struct SnapshotApi<'a> {
@@ -18,7 +18,10 @@ impl SnapshotApi<'_> {
         self.aptly.get(self.url()).await
     }
 
-    pub async fn delete(&self, options: &DeleteOptions) -> Result<(), AptlyRestError> {
+    pub async fn delete(
+        &self,
+        options: &DeleteOptions,
+    ) -> Result<TaskOr<serde_json::Value>, AptlyRestError> {
         let mut url = self.url();
 
         {
@@ -28,10 +31,7 @@ impl SnapshotApi<'_> {
             }
         }
 
-        self.aptly
-            .send_request(self.aptly.client.delete(url))
-            .await?;
-        Ok(())
+        self.aptly.json_request(self.aptly.client.delete(url)).await
     }
 }
 

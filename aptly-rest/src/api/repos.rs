@@ -2,7 +2,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr, NoneAsEmptyString};
 
-use crate::{key::AptlyKey, AptlyRestError};
+use crate::{key::AptlyKey, AptlyRestError, TaskOr};
 
 #[derive(Debug, Clone)]
 pub struct RepoApi<'a> {
@@ -29,7 +29,7 @@ impl RepoApi<'_> {
         &self,
         name: &str,
         options: &SnapshotOptions,
-    ) -> Result<crate::Snapshot, AptlyRestError> {
+    ) -> Result<TaskOr<crate::Snapshot>, AptlyRestError> {
         #[derive(Debug, Clone, Serialize)]
         #[serde(rename_all = "PascalCase")]
         struct SnapshotRequest<'a> {
@@ -46,7 +46,10 @@ impl RepoApi<'_> {
             .await
     }
 
-    pub async fn delete(&self, options: &DeleteOptions) -> Result<(), AptlyRestError> {
+    pub async fn delete(
+        &self,
+        options: &DeleteOptions,
+    ) -> Result<TaskOr<serde_json::Value>, AptlyRestError> {
         let mut url = self.aptly.url(&["api", "repos", &self.name]);
 
         {
@@ -56,10 +59,7 @@ impl RepoApi<'_> {
             }
         }
 
-        self.aptly
-            .send_request(self.aptly.client.delete(url))
-            .await?;
-        Ok(())
+        self.aptly.json_request(self.aptly.client.delete(url)).await
     }
 }
 
@@ -128,7 +128,7 @@ impl RepoApiPackages<'_> {
         }
     }
 
-    pub async fn add<'r, R>(&self, keys: R) -> Result<Repo, AptlyRestError>
+    pub async fn add<'r, R>(&self, keys: R) -> Result<TaskOr<Repo>, AptlyRestError>
     where
         R: IntoIterator<Item = &'r AptlyKey>,
     {
@@ -149,7 +149,7 @@ impl RepoApiPackages<'_> {
             .await
     }
 
-    pub async fn delete<'r, R>(&self, keys: R) -> Result<(), AptlyRestError>
+    pub async fn delete<'r, R>(&self, keys: R) -> Result<TaskOr<serde_json::Value>, AptlyRestError>
     where
         R: IntoIterator<Item = &'r AptlyKey>,
     {
@@ -167,9 +167,7 @@ impl RepoApiPackages<'_> {
             .json(&DeleteRequest {
                 package_refs: keys.into_iter().collect(),
             });
-        self.repo.aptly.send_request(req).await?;
-
-        Ok(())
+        self.repo.aptly.json_request(req).await
     }
 }
 
@@ -222,7 +220,7 @@ impl RepoApiFiles<'_> {
         &self,
         directory: &str,
         options: &AddPackageOptions,
-    ) -> Result<AddPackageResponse, AptlyRestError> {
+    ) -> Result<TaskOr<AddPackageResponse>, AptlyRestError> {
         self.repo
             .aptly
             .post(self.url(directory, None, options))
@@ -234,7 +232,7 @@ impl RepoApiFiles<'_> {
         directory: &str,
         filename: &str,
         options: &AddPackageOptions,
-    ) -> Result<AddPackageResponse, AptlyRestError> {
+    ) -> Result<TaskOr<AddPackageResponse>, AptlyRestError> {
         self.repo
             .aptly
             .post(self.url(directory, Some(filename), options))

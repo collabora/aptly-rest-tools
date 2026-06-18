@@ -1,6 +1,6 @@
 use std::{io::stdout, process::ExitCode};
 
-use aptly_rest::{api::publish, AptlyRest};
+use aptly_rest::{api::publish, AptlyRest, TaskOr};
 use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::Result;
 use tracing::{debug, info};
@@ -110,7 +110,7 @@ impl PublishCommand {
                     publish::Signing::Disabled
                 };
 
-                let repo = aptly
+                let result = aptly
                     .publish_prefix(&args.prefix)
                     .publish(
                         args.kind.into(),
@@ -125,8 +125,15 @@ impl PublishCommand {
                         },
                     )
                     .await?;
-                debug!(?repo);
-                info!("Created new published repository at '{}'", repo.prefix());
+                match result {
+                    TaskOr::Value(repo) => {
+                        debug!(?repo);
+                        info!("Created new published repository at '{}'", repo.prefix());
+                    }
+                    TaskOr::Task(task) => {
+                        info!("{task}");
+                    }
+                }
             }
             PublishCommand::List(args) => {
                 let publishes = aptly.published().await?;
@@ -167,7 +174,7 @@ impl PublishCommand {
                     publish::Signing::Disabled
                 };
 
-                let repo = aptly
+                let result = aptly
                     .publish_prefix(&args.prefix)
                     .distribution(&args.distribution)
                     .update(&publish::UpdateOptions {
@@ -177,12 +184,19 @@ impl PublishCommand {
                         ..Default::default()
                     })
                     .await?;
-                debug!(?repo);
-                info!(
-                    "Updated published repository at '{}/{}'",
-                    repo.prefix(),
-                    repo.distribution()
-                );
+                match result {
+                    TaskOr::Value(repo) => {
+                        debug!(?repo);
+                        info!(
+                            "Updated published repository at '{}/{}'",
+                            repo.prefix(),
+                            repo.distribution()
+                        );
+                    }
+                    TaskOr::Task(task) => {
+                        info!("{task}");
+                    }
+                }
             }
             PublishCommand::Drop(args) => {
                 if args.ignore_if_missing
@@ -194,15 +208,22 @@ impl PublishCommand {
                 {
                     info!("Not published; doing nothing.");
                 } else {
-                    aptly
+                    let result = aptly
                         .publish_prefix(&args.prefix)
                         .distribution(&args.distribution)
                         .delete(&publish::DeleteOptions { force: args.force })
                         .await?;
-                    info!(
-                        "Deleted published repository at '{}/{}'",
-                        args.prefix, args.distribution
-                    );
+                    match result {
+                        TaskOr::Value(_) => {
+                            info!(
+                                "Deleted published repository at '{}/{}'",
+                                args.prefix, args.distribution
+                            );
+                        }
+                        TaskOr::Task(task) => {
+                            info!("{task}");
+                        }
+                    }
                 }
             }
         }

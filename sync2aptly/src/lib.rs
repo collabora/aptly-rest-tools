@@ -27,7 +27,7 @@ use aptly_rest::{
     api::{files::UploadFiles, packages},
     dsc::DscFile,
     key::AptlyKey,
-    AptlyRest, AptlyRestError,
+    AptlyRest, AptlyRestError, TaskOr,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -1149,12 +1149,15 @@ impl SyncActions {
                 uploaded_packages
             );
 
-            let response = self
+            let result = self
                 .aptly
                 .repo(&self.repo)
                 .files()
                 .add_directory(upload_dir, &Default::default())
                 .await?;
+            let TaskOr::Value(response) = result else {
+                bail!("Unexpected async response");
+            };
             debug!(?response);
 
             let warnings = response.report().warnings();

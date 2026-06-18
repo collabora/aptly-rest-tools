@@ -2,7 +2,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DeserializeAs, NoneAsEmptyString, SerializeAs};
 
-use crate::AptlyRestError;
+use crate::{AptlyRestError, TaskOr};
 
 #[derive(Debug, Clone)]
 pub struct PublishApi<'a> {
@@ -27,7 +27,7 @@ impl PublishApi<'_> {
         kind: SourceKind,
         sources: &[Source],
         options: &PublishOptions,
-    ) -> Result<PublishedRepo, AptlyRestError> {
+    ) -> Result<TaskOr<PublishedRepo>, AptlyRestError> {
         #[derive(Debug, Serialize)]
         #[serde(rename_all = "PascalCase")]
         struct PublishRequest<'options> {
@@ -64,11 +64,17 @@ impl DistributionApi<'_> {
             .url(&["api", "publish", &self.publish.prefix, &self.distribution])
     }
 
-    pub async fn update(&self, options: &UpdateOptions) -> Result<PublishedRepo, AptlyRestError> {
+    pub async fn update(
+        &self,
+        options: &UpdateOptions,
+    ) -> Result<TaskOr<PublishedRepo>, AptlyRestError> {
         self.publish.aptly.put_body(self.url(), options).await
     }
 
-    pub async fn delete(&self, options: &DeleteOptions) -> Result<(), AptlyRestError> {
+    pub async fn delete(
+        &self,
+        options: &DeleteOptions,
+    ) -> Result<TaskOr<serde_json::Value>, AptlyRestError> {
         let mut url = self.url();
 
         {
@@ -80,9 +86,8 @@ impl DistributionApi<'_> {
 
         self.publish
             .aptly
-            .send_request(self.publish.aptly.client.delete(url))
-            .await?;
-        Ok(())
+            .json_request(self.publish.aptly.client.delete(url))
+            .await
     }
 }
 

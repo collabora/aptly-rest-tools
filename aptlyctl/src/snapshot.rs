@@ -1,6 +1,6 @@
 use std::{io::stdout, process::ExitCode};
 
-use aptly_rest::{AptlyRest, AptlyRestError};
+use aptly_rest::{AptlyRest, AptlyRestError, TaskOr};
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use http::StatusCode;
@@ -53,24 +53,29 @@ impl SnapshotCommand {
                 }
             }
 
-            SnapshotCommand::TestExists(args) => {
-                if let Err(err) = aptly.snapshot(&args.snapshot).get().await {
-                    if let AptlyRestError::Request(err) = &err {
-                        if err.status() == Some(StatusCode::NOT_FOUND) {
-                            return Ok(ExitCode::FAILURE);
-                        }
-                    }
-
-                    return Err(err.into());
+            SnapshotCommand::TestExists(args) => match aptly.snapshot(&args.snapshot).get().await {
+                Ok(_) => {}
+                Err(AptlyRestError::Request(ref e))
+                    if e.status() == Some(StatusCode::NOT_FOUND) =>
+                {
+                    return Ok(ExitCode::FAILURE);
                 }
-            }
+                Err(err) => return Err(err.into()),
+            },
 
             SnapshotCommand::Drop(args) => {
-                aptly
+                let result = aptly
                     .snapshot(&args.snapshot)
                     .delete(&aptly_rest::api::snapshots::DeleteOptions { force: args.force })
                     .await?;
-                info!("Deleted snapshot '{}'", args.snapshot);
+                match result {
+                    TaskOr::Value(_) => {
+                        info!("Deleted snapshot '{}'", args.snapshot);
+                    }
+                    TaskOr::Task(task) => {
+                        info!("{task}");
+                    }
+                }
             }
         }
 

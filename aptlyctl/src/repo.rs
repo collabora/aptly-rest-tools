@@ -1,6 +1,6 @@
 use std::{io::stdout, process::ExitCode};
 
-use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError};
+use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError, TaskOr};
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use http::StatusCode;
@@ -96,12 +96,19 @@ impl RepoPackagesCommand {
                 } else {
                     info!("Deleting {} package(s)...", args.keys.len());
 
-                    aptly
+                    let result = aptly
                         .repo(&args.repo)
                         .packages()
                         .delete(args.keys.iter())
                         .await?;
-                    info!("Deletion complete");
+                    match result {
+                        TaskOr::Value(_) => {
+                            info!("Deletion complete");
+                        }
+                        TaskOr::Task(task) => {
+                            info!("{task}");
+                        }
+                    }
                 }
             }
         }
@@ -219,28 +226,33 @@ impl RepoCommand {
                 .await;
             }
 
-            RepoCommand::TestExists(args) => {
-                if let Err(err) = aptly.repo(&args.repo).get().await {
-                    if let AptlyRestError::Request(err) = &err {
-                        if err.status() == Some(StatusCode::NOT_FOUND) {
-                            return Ok(ExitCode::FAILURE);
-                        }
-                    }
-
-                    return Err(err.into());
+            RepoCommand::TestExists(args) => match aptly.repo(&args.repo).get().await {
+                Ok(_) => {}
+                Err(AptlyRestError::Request(ref e))
+                    if e.status() == Some(StatusCode::NOT_FOUND) =>
+                {
+                    return Ok(ExitCode::FAILURE);
                 }
-            }
+                Err(err) => return Err(err.into()),
+            },
 
             RepoCommand::Snapshot(args) => {
-                let snapshot = aptly
+                let result = aptly
                     .repo(&args.repo)
                     .snapshot(&args.snapshot, &Default::default())
                     .await?;
-                info!(
-                    "Created snapshot '{}' of repo '{}'",
-                    snapshot.name(),
-                    args.repo
-                );
+                match result {
+                    TaskOr::Value(snapshot) => {
+                        info!(
+                            "Created snapshot '{}' of repo '{}'",
+                            snapshot.name(),
+                            args.repo
+                        );
+                    }
+                    TaskOr::Task(task) => {
+                        info!("{task}");
+                    }
+                }
             }
 
             RepoCommand::Clean(args) => {
@@ -258,11 +270,18 @@ impl RepoCommand {
             }
 
             RepoCommand::Drop(args) => {
-                aptly
+                let result = aptly
                     .repo(&args.repo)
                     .delete(&repos::DeleteOptions { force: args.force })
                     .await?;
-                info!("Deleted repo '{}'", args.repo);
+                match result {
+                    TaskOr::Value(_) => {
+                        info!("Deleted repo '{}'", args.repo);
+                    }
+                    TaskOr::Task(task) => {
+                        info!("{task}");
+                    }
+                }
             }
         }
 
