@@ -68,7 +68,7 @@ impl SnapshotCommand {
             SnapshotCommand::Drop(args) => {
                 aptly
                     .snapshot(&args.snapshot)
-                    .delete(&Default::default())
+                    .delete(&aptly_rest::api::snapshots::DeleteOptions { force: args.force })
                     .await?;
                 info!("Deleted snapshot '{}'", args.snapshot);
             }
