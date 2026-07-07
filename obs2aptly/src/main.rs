@@ -52,12 +52,8 @@ struct Opts {
     log_format: LogFormat,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    color_eyre::install().unwrap();
-    let opts = Opts::parse();
-
-    match opts.log_format {
+fn init_tracing(format: LogFormat) {
+    match format {
         LogFormat::Pretty => tracing_subscriber::registry()
             .with(ErrorLayer::default())
             .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
@@ -71,6 +67,13 @@ async fn main() -> Result<()> {
             )
             .init(),
     }
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    color_eyre::install().unwrap();
+    let opts = Opts::parse();
+    init_tracing(opts.log_format);
 
     let aptly = if let Some(token) = opts.api_token {
         AptlyRest::new_with_token(opts.api_url, &token)?
