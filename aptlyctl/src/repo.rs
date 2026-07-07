@@ -2,7 +2,7 @@ use std::{io::stdout, process::ExitCode};
 
 use aptly_rest::{api::repos, key::AptlyKey, AptlyRest, AptlyRestError};
 use clap::{Parser, Subcommand};
-use color_eyre::Result;
+use color_eyre::{eyre::Context, Result};
 use http::StatusCode;
 use tracing::{debug, info, warn};
 
@@ -30,8 +30,18 @@ pub struct RepoPackagesDeleteOpts {
     dry_run: bool,
 }
 
+#[derive(Parser, Debug, Clone)]
+pub struct RepoPackagesSyncOpts {
+    #[clap(long, short = 'n', default_value_t)]
+    dry_run: bool,
+    src_repo: String,
+    dst_repo: String,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum RepoPackagesCommand {
+    /// Sync between source and destination repo
+    Sync(RepoPackagesSyncOpts),
     List(RepoPackagesListOpts),
     Delete(RepoPackagesDeleteOpts),
 }
@@ -102,6 +112,63 @@ impl RepoPackagesCommand {
                         .delete(args.keys.iter())
                         .await?;
                     info!("Deletion complete");
+                }
+            }
+            RepoPackagesCommand::Sync(s) => {
+                let src_keys = aptly
+                    .repo(&s.src_repo)
+                    .packages()
+                    .list()
+                    .await
+                    .with_context(|| {
+                        format!("Failed to list packages in source repo '{}'", s.src_repo)
+                    })?;
+                let dst_keys = aptly
+                    .repo(&s.dst_repo)
+                    .packages()
+                    .list()
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to list packages in destination repo '{}'",
+                            s.dst_repo
+                        )
+                    })?;
+
+                // Add everything in src not in dst
+                let dst_set: std::collections::HashSet<&AptlyKey> = dst_keys.iter().collect();
+                let src_set: std::collections::HashSet<&AptlyKey> = src_keys.iter().collect();
+
+                let to_add: Vec<&AptlyKey> =
+                    src_keys.iter().filter(|k| !dst_set.contains(*k)).collect();
+                // Remove everything that's in dst but not src
+                let to_remove: Vec<&AptlyKey> =
+                    dst_keys.iter().filter(|k| !src_set.contains(*k)).collect();
+
+                for k in &to_add {
+                    info!("Adding: {k}");
+                }
+
+                if !s.dry_run && !to_add.is_empty() {
+                    aptly
+                        .repo(&s.dst_repo)
+                        .packages()
+                        .add(to_add)
+                        .await
+                        .context("Failed to add packages")?;
+                }
+
+                for k in &to_remove {
+                    info!("Removing: {k}");
+                }
+
+                if !s.dry_run && !to_remove.is_empty() {
+                    aptly
+                        .repo(&s.dst_repo)
+                        .packages()
+                        .delete(to_remove)
+                        .await
+                        .context("Failed to remove packages")?;
                 }
             }
         }
