@@ -9,7 +9,7 @@ use aptly_rest::{
     api::{publish, repos, snapshots::DeleteOptions},
     AptlyRest, AptlyRestError,
 };
-use clap::{builder::ArgPredicate, Parser};
+use clap::{builder::ArgPredicate, Parser, ValueEnum};
 use color_eyre::{
     eyre::{bail, ensure, Context},
     Result,
@@ -22,6 +22,13 @@ use tracing::{info, metadata::LevelFilter, warn};
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
 use url::Url;
+
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+enum LogFormat {
+    #[default]
+    Pretty,
+    Json,
+}
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -86,6 +93,9 @@ struct Opts {
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
+    /// Log output format
+    #[clap(long, value_enum, default_value_t = LogFormat::Pretty)]
+    log_format: LogFormat,
 }
 
 const TEMPLATE_VAR_COMPONENT: &str = "component";
@@ -474,12 +484,24 @@ async fn sync_dist(
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(ErrorLayer::default())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
-        .init();
     color_eyre::install().unwrap();
     let opts = Opts::parse();
+
+    match opts.log_format {
+        LogFormat::Pretty => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+            .init(),
+        LogFormat::Json => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .json()
+                    .with_filter(LevelFilter::INFO),
+            )
+            .init(),
+    }
+
     let aptly = if let Some(token) = &opts.api_token {
         AptlyRest::new_with_token(opts.api_url.clone(), token)?
     } else {
