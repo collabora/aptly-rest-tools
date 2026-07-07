@@ -277,6 +277,7 @@ pub struct UpdateOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signing: Option<Signing>,
     pub acquire_by_hash: bool,
+    pub skip_cleanup: bool,
     pub skip_contents: bool,
     pub skip_bz2: bool,
 }
