@@ -83,7 +83,7 @@ impl RepoPackagesCommand {
                     for key in &keys {
                         info!("{key}");
                     }
-                    args.keys.extend(keys.into_iter());
+                    args.keys.extend(keys);
                 }
 
                 if args.keys.is_empty() {
