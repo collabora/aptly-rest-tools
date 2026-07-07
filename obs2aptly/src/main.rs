@@ -71,9 +71,9 @@ fn init_tracing(format: LogFormat) {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    color_eyre::install().unwrap();
     let opts = Opts::parse();
     init_tracing(opts.log_format);
+    color_eyre::install()?;
 
     let aptly = if let Some(token) = opts.api_token {
         AptlyRest::new_with_token(opts.api_url, &token)?
