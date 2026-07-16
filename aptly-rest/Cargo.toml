@@ -10,7 +10,7 @@ edition = "2021"
 base16ct = { version = "0.2.0", features = ["alloc"] }
 clap = { version = "4", features = ["derive"] }
 debian-packaging = { workspace = true }
-digest = "0.10.7"
+digest = "0.11.3"
 fnv = "1.0.7"
 futures = "0.3.31"
 md-5 = "0.10.6"
