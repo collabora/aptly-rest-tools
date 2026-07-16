@@ -23,7 +23,7 @@ sha2 = "0.11.0"
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
 tokio-util = { version = "0.7.15", features = ["compat"] }
-url = "2.5.4"
+url = { version = "2.5.4", features = ["serde"] }
 walkdir = "2.5.0"
 
 [dev-dependencies]

@@ -1,0 +1,251 @@
+use std::collections::HashMap;
+
+use reqwest::Url;
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DefaultOnNull, NoneAsEmptyString};
+
+use crate::AptlyRestError;
+
+#[derive(Debug, Clone)]
+pub struct MirrorApi<'a> {
+    pub(crate) aptly: &'a crate::AptlyRest,
+    pub(crate) name: String,
+}
+
+impl<'a> MirrorApi<'a> {
+    pub fn url(&self) -> Url {
+        self.aptly.url(&["api", "mirrors", &self.name])
+    }
+
+    pub fn create(&self, archive_url: Url) -> MirrorCreation<'_> {
+        let request = MirrorCreateRequest::new(&self.name, archive_url);
+        MirrorCreation {
+            mirror: self,
+            request,
+        }
+    }
+
+    pub fn update(&self) -> MirrorUpdate<'_> {
+        MirrorUpdate {
+            mirror: self,
+            request: Default::default(),
+        }
+    }
+
+    pub async fn drop(self) -> Result<(), AptlyRestError> {
+        self.aptly
+            .send_request(self.aptly.client.delete(self.url()))
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct MirrorCreateRequest<'a> {
+    name: &'a str,
+    #[serde(rename = "ArchiveURL")]
+    archive_url: Url,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    distribution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ignore_signatures: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_sources: Option<bool>,
+}
+
+impl<'a> MirrorCreateRequest<'a> {
+    fn new(name: &'a str, archive_url: Url) -> Self {
+        MirrorCreateRequest {
+            name,
+            archive_url,
+            distribution: None,
+            ignore_signatures: None,
+            download_sources: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MirrorCreation<'a> {
+    mirror: &'a MirrorApi<'a>,
+    request: MirrorCreateRequest<'a>,
+}
+
+impl MirrorCreation<'_> {
+    pub fn ignore_signatures(&mut self, v: bool) -> &mut Self {
+        self.request.ignore_signatures = Some(v);
+        self
+    }
+
+    pub fn download_sources(&mut self, v: bool) -> &mut Self {
+        self.request.download_sources = Some(v);
+        self
+    }
+
+    pub fn distribution<D: Into<String>>(&mut self, distribution: D) -> &mut Self {
+        self.request.distribution = Some(distribution.into());
+        self
+    }
+
+    pub async fn run(&self) -> Result<Mirror, AptlyRestError> {
+        self.mirror
+            .aptly
+            .post_body(self.mirror.aptly.url(&["api", "mirrors"]), &self.request)
+            .await
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct MirrorUpdateRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    archive_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    distribution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ignore_signatures: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_sources: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MirrorUpdate<'a> {
+    mirror: &'a MirrorApi<'a>,
+    request: MirrorUpdateRequest,
+}
+
+impl MirrorUpdate<'_> {
+    pub fn ignore_signatures(&mut self, v: bool) -> &mut Self {
+        self.request.ignore_signatures = Some(v);
+        self
+    }
+
+    pub fn distribution<D: Into<String>>(&mut self, distribution: D) -> &mut Self {
+        self.request.distribution = Some(distribution.into());
+        self
+    }
+
+    pub fn archive_url<U: Into<String>>(&mut self, archive_url: U) -> &mut Self {
+        self.request.archive_url = Some(archive_url.into());
+        self
+    }
+
+    pub fn download_sources(&mut self, v: bool) -> &mut Self {
+        self.request.download_sources = Some(v);
+        self
+    }
+
+    pub async fn run(&self) -> Result<(), AptlyRestError> {
+        self.mirror
+            .aptly
+            .send_request(
+                self.mirror
+                    .aptly
+                    .client
+                    .put(self.mirror.url())
+                    .json(&self.request),
+            )
+            .await?;
+        Ok(())
+    }
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Mirror {
+    #[serde(rename = "UUID")]
+    uuid: String,
+    name: String,
+    archive_root: String,
+    distribution: String,
+    #[serde_as(as = "DefaultOnNull")]
+    components: Vec<String>,
+    #[serde_as(as = "DefaultOnNull")]
+    architectures: Vec<String>,
+    last_download_date: String,
+    #[serde_as(as = "NoneAsEmptyString")]
+    filter: Option<String>,
+    status: u32,
+    #[serde(rename = "WorkerPID")]
+    worker_pid: u32,
+    filter_with_deps: bool,
+    skip_component_check: bool,
+    download_sources: bool,
+    download_udebs: bool,
+    download_installer: bool,
+    meta: HashMap<String, String>,
+}
+
+impl Mirror {
+    pub fn uuid(&self) -> &str {
+        &self.uuid
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn archive_root(&self) -> &str {
+        &self.archive_root
+    }
+
+    pub fn distribution(&self) -> &str {
+        &self.distribution
+    }
+
+    pub fn components(&self) -> &[String] {
+        &self.components
+    }
+
+    pub fn architectures(&self) -> &[String] {
+        &self.architectures
+    }
+
+    pub fn last_download_date(&self) -> &str {
+        &self.last_download_date
+    }
+
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
+    }
+
+    pub fn status(&self) -> u32 {
+        self.status
+    }
+
+    pub fn worker_pid(&self) -> u32 {
+        self.worker_pid
+    }
+
+    pub fn filter_with_deps(&self) -> bool {
+        self.filter_with_deps
+    }
+
+    pub fn skip_component_check(&self) -> bool {
+        self.skip_component_check
+    }
+
+    pub fn skip_architecture_check(&self) -> bool {
+        self.skip_architecture_check
+    }
+
+    pub fn download_sources(&self) -> bool {
+        self.download_sources
+    }
+
+    pub fn download_udebs(&self) -> bool {
+        self.download_udebs
+    }
+
+    pub fn download_installer(&self) -> bool {
+        self.download_installer
+    }
+
+    pub fn meta(&self) -> &HashMap<String, String> {
+        &self.meta
+    }
+}
