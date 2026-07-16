@@ -21,6 +21,7 @@ enum OutputFormat {
     #[default]
     Name,
     Json,
+    Yaml,
 }
 
 #[derive(Subcommand, Debug)]

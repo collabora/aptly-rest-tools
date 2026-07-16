@@ -43,11 +43,15 @@ impl SnapshotCommand {
                         let mut names: Vec<_> = snapshots.iter().map(|s| s.name()).collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {
                         serde_json::to_writer_pretty(&mut stdout(), &snapshots)?;
+                        println!();
+                    }
+                    OutputFormat::Yaml => {
+                        serde_saphyr::to_io_writer(&mut stdout(), &snapshots)?;
                         println!();
                     }
                 }

@@ -141,11 +141,15 @@ impl PublishCommand {
                             .collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {
                         serde_json::to_writer_pretty(&mut stdout(), &publishes)?;
+                        println!();
+                    }
+                    OutputFormat::Yaml => {
+                        serde_saphyr::to_io_writer(&mut stdout(), &publishes)?;
                         println!();
                     }
                 }

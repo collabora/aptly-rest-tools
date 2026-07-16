@@ -224,7 +224,7 @@ impl Display for OriginLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OriginLocation::Path(path) => write!(f, "{}", path.display()),
-            OriginLocation::Url(url) => write!(f, "{}", url),
+            OriginLocation::Url(url) => write!(f, "{url}"),
         }
     }
 }

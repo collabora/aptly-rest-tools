@@ -45,7 +45,7 @@ async fn test_dsc<P: AsRef<Path>>(file: P) {
 
     let dsc = Dsc::from_file(path).await.unwrap();
     let key = AptlyKey::try_from(&dsc).unwrap();
-    assert_eq!(key, expected, "Got: {} Expected: {}", key, expected);
+    assert_eq!(key, expected, "Got: {key} Expected: {expected}");
 }
 
 #[tokio::test]
@@ -109,9 +109,7 @@ async fn scanner() {
     ] {
         assert!(
             found.iter().any(|s| s.as_str() == item),
-            "{} not in {:#?}",
-            item,
-            found
+            "{item} not in {found:#?}"
         );
     }
 }

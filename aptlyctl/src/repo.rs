@@ -63,10 +63,10 @@ impl RepoPackagesCommand {
 
                     keys.sort();
                     for key in keys {
-                        println!("{}", key);
+                        println!("{key}");
                     }
                 }
-                OutputFormat::Json => {
+                OutputFormat::Json | OutputFormat::Yaml => {
                     let results = aptly
                         .repo(&args.repo)
                         .packages()
@@ -77,7 +77,16 @@ impl RepoPackagesCommand {
                         return Ok(ExitCode::FAILURE);
                     }
 
-                    serde_json::to_writer_pretty(&mut stdout(), &results)?;
+                    match args.format {
+                        OutputFormat::Json => {
+                            serde_json::to_writer_pretty(&mut stdout(), &results)?;
+                        }
+                        OutputFormat::Yaml => {
+                            serde_saphyr::to_io_writer(&mut stdout(), &results)?;
+                        }
+                        _ => unreachable!(),
+                    }
+                    println!();
                 }
             },
             RepoPackagesCommand::Delete(mut args) => {
@@ -261,11 +270,15 @@ impl RepoCommand {
                         let mut names: Vec<_> = repos.iter().map(|r| r.name()).collect();
                         names.sort();
                         for name in names {
-                            println!("{}", name);
+                            println!("{name}");
                         }
                     }
                     OutputFormat::Json => {
                         serde_json::to_writer_pretty(&mut stdout(), &repos)?;
+                        println!();
+                    }
+                    OutputFormat::Yaml => {
+                        serde_saphyr::to_io_writer(&mut stdout(), &repos)?;
                         println!();
                     }
                 }
