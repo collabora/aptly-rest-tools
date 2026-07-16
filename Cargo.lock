@@ -199,7 +199,7 @@ version = "0.1.0"
 dependencies = [
  "aptly-rest",
  "axum",
- "axum-extra",
+ "axum-extra 0.12.6",
  "axum-test",
  "clap",
  "color-eyre",
@@ -613,6 +613,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-extra"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be44683b41ccb9ab2d23a5230015c9c3c55be97a25e4428366de8873103f7970"
+dependencies = [
+ "axum",
+ "axum-core",
+ "axum-macros",
+ "bytes",
+ "form_urlencoded",
+ "futures-core",
+ "futures-util",
+ "http 1.4.2",
+ "http-body 1.1.0",
+ "http-body-util",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "rustversion",
+ "serde_core",
+ "serde_html_form",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "axum-macros"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -633,7 +660,7 @@ dependencies = [
  "assert-json-diff",
  "auto-future",
  "axum",
- "axum-extra",
+ "axum-extra 0.10.3",
  "bytes",
  "bytesize",
  "cookie",
