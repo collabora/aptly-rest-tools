@@ -96,6 +96,46 @@ impl Mirror {
         self.data.architectures.as_slice()
     }
 
+    pub fn filter(&self) -> &str {
+        &self.data.filter
+    }
+
+    pub fn keyrings(&self) -> &[String] {
+        self.data.keyrings.as_slice()
+    }
+
+    pub fn download_sources(&self) -> bool {
+        self.data.download_sources
+    }
+
+    pub fn download_udebs(&self) -> bool {
+        self.data.download_udebs
+    }
+
+    pub fn download_installer(&self) -> bool {
+        self.data.download_installer
+    }
+
+    pub fn download_app_stream(&self) -> bool {
+        self.data.download_app_stream
+    }
+
+    pub fn filter_with_deps(&self) -> bool {
+        self.data.filter_with_deps
+    }
+
+    pub fn skip_component_check(&self) -> bool {
+        self.data.skip_component_check
+    }
+
+    pub fn skip_architecture_check(&self) -> bool {
+        self.data.skip_architecture_check
+    }
+
+    pub fn ignore_signatures(&self) -> bool {
+        self.data.ignore_signatures
+    }
+
     pub(crate) fn add_package(&mut self, package: String) {
         self.packages.push(package)
     }

@@ -82,6 +82,12 @@ impl AptlyRestMock {
             .mount(&server.server)
             .await;
 
+        Mock::given(method("POST"))
+            .and(path("api/mirrors"))
+            .respond_with(api::mirrors::MirrorsCreateResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
         server
     }
 
@@ -186,6 +192,12 @@ pub struct MirrorData {
     download_sources: bool,
     download_udebs: bool,
     download_installer: bool,
+    #[serde(default)]
+    download_app_stream: bool,
+    #[serde(default)]
+    keyrings: Vec<String>,
+    #[serde(default)]
+    ignore_signatures: bool,
 }
 
 #[derive(Deserialize, Debug)]
