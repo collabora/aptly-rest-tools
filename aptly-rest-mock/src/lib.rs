@@ -100,6 +100,12 @@ impl AptlyRestMock {
             .mount(&server.server)
             .await;
 
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/?api/mirrors/[^/]+/packages$"))
+            .respond_with(api::mirrors::MirrorsPackagesResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
         server
     }
 
@@ -151,6 +157,16 @@ impl AptlyRestMock {
         let mut inner = self.inner.write().unwrap();
         assert!(inner.pool.has_package(&key), "{key} not found in pool");
         inner.repositories.add_package(repo, key);
+    }
+
+    /// Add package to named mirror using aptly key.
+    ///
+    /// The package with the given key should already be in the package pool
+    /// and the mirror should be part of the mirrors
+    pub fn mirror_add_package(&self, mirror: &str, key: String) {
+        let mut inner = self.inner.write().unwrap();
+        assert!(inner.pool.has_package(&key), "{key} not found in pool");
+        inner.mirrors.add_package(mirror, key);
     }
 
     pub fn url(&self) -> Url {

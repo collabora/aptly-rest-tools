@@ -309,7 +309,6 @@ impl Respond for MirrorsEditResponder {
     }
 }
 
-/*
 pub(crate) struct MirrorsPackagesResponder {
     mock: AptlyRestMock,
 }
@@ -328,14 +327,17 @@ impl Respond for MirrorsPackagesResponder {
         for (k, v) in request.url.query_pairs() {
             match (k.as_ref(), v.as_ref()) {
                 ("format", "details") => detailed = true,
+                // The mock does not implement aptly's query language, so any query (`q`)
+                // and `withDeps` are ignored: all of the mirror's packages are returned.
+                ("q", _) | ("withDeps", _) => {}
                 (k, v) => unimplemented!("query pair {k}={v}"),
             }
         }
 
         let inner = self.mock.inner.read().unwrap();
-        if let Some(repo) = inner.repositories.get(name) {
+        if let Some(mirror) = inner.mirrors.get(name) {
             if detailed {
-                let packages: Vec<_> = repo
+                let packages: Vec<_> = mirror
                     .packages()
                     .iter()
                     .map(|r| inner.pool.package(r).unwrap().fields())
@@ -343,11 +345,10 @@ impl Respond for MirrorsPackagesResponder {
 
                 ResponseTemplate::new(200).set_body_json(packages)
             } else {
-                ResponseTemplate::new(200).set_body_json(repo.packages())
+                ResponseTemplate::new(200).set_body_json(mirror.packages())
             }
         } else {
             ResponseTemplate::new(404)
         }
     }
 }
-*/

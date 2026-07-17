@@ -169,3 +169,25 @@ async fn mirror_edit_rejects_unknown_fields() {
 
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn mirror_packages() {
+    const KEY: &str = "Pamd64 rustc 1.48.0+dfsg1-2 87415bdc9ef60793";
+
+    let mock = AptlyRestMock::start().await;
+    mock.load_default_data();
+    mock.mirror_add_package("apertis-v2023pre", KEY.to_owned());
+
+    let aptly = AptlyRest::new(mock.url());
+    let mirror = aptly.mirror("apertis-v2023pre");
+
+    let keys = mirror.packages().list().await.expect("failed to list");
+    assert!(keys.iter().any(|k| k.to_string() == KEY));
+
+    let detailed = mirror
+        .packages()
+        .detailed()
+        .await
+        .expect("failed to list detailed");
+    assert_eq!(detailed.len(), keys.len());
+}
