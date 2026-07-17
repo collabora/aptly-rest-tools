@@ -144,6 +144,66 @@ async fn update(opts: &MirrorUpdateOpts, aptly: &AptlyRest) -> Result<()> {
     Ok(())
 }
 
+#[derive(Parser, Debug)]
+pub struct MirrorEditOpts {
+    name: String,
+    #[clap(long)]
+    archive_url: Option<Url>,
+    #[clap(long)]
+    filter: Option<String>,
+    #[clap(long = "architecture")]
+    architectures: Vec<String>,
+    #[clap(long = "keyring")]
+    keyrings: Vec<String>,
+    #[clap(long)]
+    filter_with_deps: Option<bool>,
+    #[clap(long)]
+    download_sources: Option<bool>,
+    #[clap(long)]
+    download_udebs: Option<bool>,
+    #[clap(long)]
+    download_installer: Option<bool>,
+    #[clap(long)]
+    ignore_signatures: Option<bool>,
+}
+
+async fn edit(opts: &MirrorEditOpts, aptly: &AptlyRest) -> Result<()> {
+    let mirror = aptly.mirror(&opts.name);
+    let mut edit = mirror.edit();
+
+    if let Some(archive_url) = &opts.archive_url {
+        edit.archive_url(archive_url.to_string());
+    }
+    if let Some(filter) = &opts.filter {
+        edit.filter(filter);
+    }
+    if !opts.architectures.is_empty() {
+        edit.architectures(opts.architectures.clone());
+    }
+    if !opts.keyrings.is_empty() {
+        edit.keyrings(opts.keyrings.clone());
+    }
+    if let Some(v) = opts.filter_with_deps {
+        edit.filter_with_deps(v);
+    }
+    if let Some(v) = opts.download_sources {
+        edit.download_sources(v);
+    }
+    if let Some(v) = opts.download_udebs {
+        edit.download_udebs(v);
+    }
+    if let Some(v) = opts.download_installer {
+        edit.download_installer(v);
+    }
+    if let Some(v) = opts.ignore_signatures {
+        edit.ignore_signatures(v);
+    }
+
+    edit.run().await?;
+
+    Ok(())
+}
+
 async fn drop_mirror(name: &str, aptly: &AptlyRest) -> Result<()> {
     let mirror = aptly.mirror(name);
     mirror.drop().await?;
@@ -181,6 +241,7 @@ pub enum MirrorCommand {
     List(MirrorListOpts),
     Create(MirrorCreateOpts),
     Update(MirrorUpdateOpts),
+    Edit(MirrorEditOpts),
     Drop { name: String },
 }
 
@@ -190,6 +251,7 @@ impl MirrorCommand {
             MirrorCommand::List(args) => list(args.format, aptly).await?,
             MirrorCommand::Create(args) => create_mirror(args, aptly).await?,
             MirrorCommand::Update(args) => update(args, aptly).await?,
+            MirrorCommand::Edit(args) => edit(args, aptly).await?,
             MirrorCommand::Drop { name } => drop_mirror(name, aptly).await?,
         }
         Ok(ExitCode::SUCCESS)
