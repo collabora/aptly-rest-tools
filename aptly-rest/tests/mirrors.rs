@@ -71,3 +71,51 @@ async fn mirror_create() {
     assert!(m.skip_component_check());
     assert!(m.skip_architecture_check());
 }
+
+#[tokio::test]
+async fn mirror_update() {
+    let mock = AptlyRestMock::start().await;
+    mock.load_default_data();
+    let aptly = AptlyRest::new(mock.url());
+
+    let mirror = aptly.mirror("apertis-v2023pre");
+    let mut update = mirror.update();
+    update
+        .rename("apertis-renamed")
+        .keyrings(vec!["/etc/apt/trusted.gpg".to_owned()])
+        .ignore_checksums(true)
+        .ignore_signatures(true)
+        .force_update(true)
+        .skip_existing_packages(true)
+        .latest_only(true);
+    update.run().await.expect("failed to update mirror");
+
+    let mirrors = mock.mirrors();
+    let m = mirrors.get("apertis-v2023pre").expect("mirror missing");
+    let u = m.applied_update().expect("no update recorded");
+    assert_eq!(u.rename.as_deref(), Some("apertis-renamed"));
+    assert_eq!(u.keyrings, ["/etc/apt/trusted.gpg"]);
+    assert!(u.ignore_checksums);
+    assert!(u.ignore_signatures);
+    assert!(u.force_update);
+    assert!(u.skip_existing_packages);
+    assert!(u.latest_only);
+}
+
+#[tokio::test]
+async fn mirror_update_rejects_unknown_fields() {
+    let mock = AptlyRestMock::start().await;
+    mock.load_default_data();
+
+    // A field the update (PUT) endpoint does not accept -- e.g. a config-edit field --
+    // must be rejected rather than silently ignored.
+    let url = mock.url().join("api/mirrors/apertis-v2023pre").unwrap();
+    let response = reqwest::Client::new()
+        .put(url)
+        .json(&serde_json::json!({ "ForceUpdate": true, "ArchiveUrl": "http://example.com/" }))
+        .send()
+        .await
+        .expect("request failed");
+
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+}

@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use wiremock::{Respond, ResponseTemplate};
 
+use crate::mirror::AppliedUpdate;
 use crate::{AptlyRestMock, MirrorData};
 
 fn mirror_json(data: &MirrorData) -> Value {
@@ -139,6 +140,79 @@ impl Respond for MirrorsCreateResponder {
         inner.mirrors.add(data.into());
 
         ResponseTemplate::new(201).set_body_json(body)
+    }
+}
+
+// Deny unknown fields so that sending parameters the real update (PUT) endpoint does
+// not accept -- e.g. config-edit fields, which belong to the separate edit endpoint --
+// is caught rather than silently ignored.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
+struct MirrorUpdateParams {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    keyrings: Vec<String>,
+    #[serde(default)]
+    ignore_checksums: bool,
+    #[serde(default)]
+    ignore_signatures: bool,
+    #[serde(default)]
+    force_update: bool,
+    #[serde(default)]
+    skip_existing_packages: bool,
+    #[serde(default)]
+    latest_only: bool,
+}
+
+impl From<MirrorUpdateParams> for AppliedUpdate {
+    fn from(p: MirrorUpdateParams) -> Self {
+        AppliedUpdate {
+            rename: p.name,
+            keyrings: p.keyrings,
+            ignore_checksums: p.ignore_checksums,
+            ignore_signatures: p.ignore_signatures,
+            force_update: p.force_update,
+            skip_existing_packages: p.skip_existing_packages,
+            latest_only: p.latest_only,
+        }
+    }
+}
+
+pub(crate) struct MirrorsUpdateResponder {
+    mock: AptlyRestMock,
+}
+
+impl MirrorsUpdateResponder {
+    pub(crate) fn new(mock: AptlyRestMock) -> Self {
+        Self { mock }
+    }
+}
+
+impl Respond for MirrorsUpdateResponder {
+    fn respond(&self, request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let name = request
+            .url
+            .path_segments()
+            .and_then(|mut s| s.nth(2))
+            .unwrap_or("")
+            .to_owned();
+
+        let params: MirrorUpdateParams = match serde_json::from_slice(&request.body) {
+            Ok(params) => params,
+            Err(e) => {
+                return ResponseTemplate::new(400).set_body_string(e.to_string());
+            }
+        };
+
+        let mut inner = self.mock.inner.write().unwrap();
+        match inner.mirrors.get_mut(&name) {
+            Some(mirror) => {
+                mirror.set_applied_update(params.into());
+                ResponseTemplate::new(200)
+            }
+            None => ResponseTemplate::new(404),
+        }
     }
 }
 

@@ -28,6 +28,10 @@ impl Mirrors {
         self.mirrors.get(name)
     }
 
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut Mirror> {
+        self.mirrors.get_mut(name)
+    }
+
     pub fn add(&mut self, mirror: Mirror) {
         self.mirrors.insert(mirror.data.name.clone(), mirror);
     }
@@ -65,14 +69,29 @@ impl From<MirrorData> for Mirror {
         Mirror {
             data,
             packages: Vec::new(),
+            applied_update: None,
         }
     }
+}
+
+/// The parameters of the most recent update (PUT) request for a mirror,
+/// recorded by the mock so tests can verify what the client sent.
+#[derive(Clone, Debug, Default)]
+pub struct AppliedUpdate {
+    pub rename: Option<String>,
+    pub keyrings: Vec<String>,
+    pub ignore_checksums: bool,
+    pub ignore_signatures: bool,
+    pub force_update: bool,
+    pub skip_existing_packages: bool,
+    pub latest_only: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct Mirror {
     pub(crate) data: MirrorData,
     packages: Vec<String>,
+    applied_update: Option<AppliedUpdate>,
 }
 
 impl Mirror {
@@ -142,5 +161,13 @@ impl Mirror {
 
     pub fn packages(&self) -> &[String] {
         &self.packages
+    }
+
+    pub(crate) fn set_applied_update(&mut self, update: AppliedUpdate) {
+        self.applied_update = Some(update);
+    }
+
+    pub fn applied_update(&self) -> Option<&AppliedUpdate> {
+        self.applied_update.as_ref()
     }
 }
