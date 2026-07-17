@@ -32,6 +32,13 @@ impl<'a> MirrorApi<'a> {
         }
     }
 
+    pub fn edit(&self) -> MirrorEdit<'_> {
+        MirrorEdit {
+            mirror: self,
+            request: Default::default(),
+        }
+    }
+
     pub async fn drop(self) -> Result<(), AptlyRestError> {
         self.aptly
             .send_request(self.aptly.client.delete(self.url()))
@@ -245,6 +252,96 @@ impl MirrorUpdate<'_> {
                     .aptly
                     .client
                     .put(self.mirror.url())
+                    .json(&self.request),
+            )
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct MirrorEditRequest {
+    #[serde(rename = "ArchiveURL", skip_serializing_if = "Option::is_none")]
+    archive_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filter: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    architectures: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    keyrings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filter_with_deps: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_sources: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_udebs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_installer: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ignore_signatures: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MirrorEdit<'a> {
+    mirror: &'a MirrorApi<'a>,
+    request: MirrorEditRequest,
+}
+
+impl MirrorEdit<'_> {
+    pub fn archive_url<U: Into<String>>(&mut self, archive_url: U) -> &mut Self {
+        self.request.archive_url = Some(archive_url.into());
+        self
+    }
+
+    pub fn filter<F: Into<String>>(&mut self, filter: F) -> &mut Self {
+        self.request.filter = Some(filter.into());
+        self
+    }
+
+    pub fn architectures(&mut self, architectures: Vec<String>) -> &mut Self {
+        self.request.architectures = architectures;
+        self
+    }
+
+    pub fn keyrings(&mut self, keyrings: Vec<String>) -> &mut Self {
+        self.request.keyrings = keyrings;
+        self
+    }
+
+    pub fn filter_with_deps(&mut self, v: bool) -> &mut Self {
+        self.request.filter_with_deps = Some(v);
+        self
+    }
+
+    pub fn download_sources(&mut self, v: bool) -> &mut Self {
+        self.request.download_sources = Some(v);
+        self
+    }
+
+    pub fn download_udebs(&mut self, v: bool) -> &mut Self {
+        self.request.download_udebs = Some(v);
+        self
+    }
+
+    pub fn download_installer(&mut self, v: bool) -> &mut Self {
+        self.request.download_installer = Some(v);
+        self
+    }
+
+    pub fn ignore_signatures(&mut self, v: bool) -> &mut Self {
+        self.request.ignore_signatures = Some(v);
+        self
+    }
+
+    pub async fn run(&self) -> Result<(), AptlyRestError> {
+        self.mirror
+            .aptly
+            .send_request(
+                self.mirror
+                    .aptly
+                    .client
+                    .post(self.mirror.url())
                     .json(&self.request),
             )
             .await?;
