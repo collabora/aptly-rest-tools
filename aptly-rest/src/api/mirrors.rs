@@ -4,7 +4,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnNull, NoneAsEmptyString};
 
-use crate::AptlyRestError;
+use crate::{api::repos::Package, key::AptlyKey, AptlyRestError};
 
 #[derive(Debug, Clone)]
 pub struct MirrorApi<'a> {
@@ -39,11 +39,100 @@ impl<'a> MirrorApi<'a> {
         }
     }
 
+    pub fn packages(&self) -> MirrorApiPackages<'_> {
+        MirrorApiPackages { mirror: self }
+    }
+
     pub async fn drop(self) -> Result<(), AptlyRestError> {
         self.aptly
             .send_request(self.aptly.client.delete(self.url()))
             .await?;
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MirrorApiPackages<'a> {
+    mirror: &'a MirrorApi<'a>,
+}
+
+impl MirrorApiPackages<'_> {
+    fn base_url(&self) -> Url {
+        self.mirror
+            .aptly
+            .url(&["api", "mirrors", &self.mirror.name, "packages"])
+    }
+
+    fn search_url(&self, query: Option<&str>, with_deps: bool, detailed: bool) -> Url {
+        let mut url = self.base_url();
+
+        let mut pairs = url.query_pairs_mut();
+        if let Some(query) = query {
+            pairs.append_pair("q", query);
+            if with_deps {
+                pairs.append_pair("withDeps", "1");
+            }
+        }
+
+        if detailed {
+            pairs.append_pair("format", "details");
+        }
+
+        drop(pairs);
+        url
+    }
+
+    async fn do_list(
+        &self,
+        query: Option<&str>,
+        with_deps: bool,
+    ) -> Result<Vec<AptlyKey>, AptlyRestError> {
+        let url = self.search_url(query, with_deps, false);
+        self.mirror.aptly.get(url).await
+    }
+
+    async fn do_detailed(
+        &self,
+        query: Option<&str>,
+        with_deps: bool,
+    ) -> Result<Vec<Package>, AptlyRestError> {
+        let url = self.search_url(query, with_deps, true);
+        self.mirror.aptly.get(url).await
+    }
+
+    pub async fn list(&self) -> Result<Vec<AptlyKey>, AptlyRestError> {
+        self.do_list(None, false).await
+    }
+
+    pub async fn detailed(&self) -> Result<Vec<Package>, AptlyRestError> {
+        self.do_detailed(None, false).await
+    }
+
+    pub fn query(&self, query: String, with_deps: bool) -> MirrorApiPackagesQuery<'_> {
+        MirrorApiPackagesQuery {
+            parent: self,
+            query,
+            with_deps,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MirrorApiPackagesQuery<'a> {
+    parent: &'a MirrorApiPackages<'a>,
+    query: String,
+    with_deps: bool,
+}
+
+impl MirrorApiPackagesQuery<'_> {
+    pub async fn list(&self) -> Result<Vec<AptlyKey>, AptlyRestError> {
+        self.parent.do_list(Some(&self.query), self.with_deps).await
+    }
+
+    pub async fn detailed(&self) -> Result<Vec<Package>, AptlyRestError> {
+        self.parent
+            .do_detailed(Some(&self.query), self.with_deps)
+            .await
     }
 }
 
