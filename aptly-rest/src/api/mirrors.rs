@@ -49,9 +49,29 @@ struct MirrorCreateRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     distribution: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    filter: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    architectures: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    keyrings: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ignore_signatures: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     download_sources: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_udebs: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_installer: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    download_app_stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filter_with_deps: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    skip_component_check: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    skip_architecture_check: Option<bool>,
 }
 
 impl<'a> MirrorCreateRequest<'a> {
@@ -60,8 +80,18 @@ impl<'a> MirrorCreateRequest<'a> {
             name,
             archive_url,
             distribution: None,
+            filter: None,
+            components: Vec::new(),
+            architectures: Vec::new(),
+            keyrings: Vec::new(),
             ignore_signatures: None,
             download_sources: None,
+            download_udebs: None,
+            download_installer: None,
+            download_app_stream: None,
+            filter_with_deps: None,
+            skip_component_check: None,
+            skip_architecture_check: None,
         }
     }
 }
@@ -88,6 +118,56 @@ impl MirrorCreation<'_> {
         self
     }
 
+    pub fn filter<F: Into<String>>(&mut self, filter: F) -> &mut Self {
+        self.request.filter = Some(filter.into());
+        self
+    }
+
+    pub fn components(&mut self, components: Vec<String>) -> &mut Self {
+        self.request.components = components;
+        self
+    }
+
+    pub fn architectures(&mut self, architectures: Vec<String>) -> &mut Self {
+        self.request.architectures = architectures;
+        self
+    }
+
+    pub fn keyrings(&mut self, keyrings: Vec<String>) -> &mut Self {
+        self.request.keyrings = keyrings;
+        self
+    }
+
+    pub fn download_udebs(&mut self, v: bool) -> &mut Self {
+        self.request.download_udebs = Some(v);
+        self
+    }
+
+    pub fn download_installer(&mut self, v: bool) -> &mut Self {
+        self.request.download_installer = Some(v);
+        self
+    }
+
+    pub fn download_app_stream(&mut self, v: bool) -> &mut Self {
+        self.request.download_app_stream = Some(v);
+        self
+    }
+
+    pub fn filter_with_deps(&mut self, v: bool) -> &mut Self {
+        self.request.filter_with_deps = Some(v);
+        self
+    }
+
+    pub fn skip_component_check(&mut self, v: bool) -> &mut Self {
+        self.request.skip_component_check = Some(v);
+        self
+    }
+
+    pub fn skip_architecture_check(&mut self, v: bool) -> &mut Self {
+        self.request.skip_architecture_check = Some(v);
+        self
+    }
+
     pub async fn run(&self) -> Result<Mirror, AptlyRestError> {
         self.mirror
             .aptly
@@ -101,14 +181,18 @@ impl MirrorCreation<'_> {
 struct MirrorUpdateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    keyrings: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    archive_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    distribution: Option<String>,
+    ignore_checksums: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_signatures: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    download_sources: Option<bool>,
+    force_update: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    skip_existing_packages: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    latest_only: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,23 +202,38 @@ pub struct MirrorUpdate<'a> {
 }
 
 impl MirrorUpdate<'_> {
+    pub fn rename<N: Into<String>>(&mut self, name: N) -> &mut Self {
+        self.request.name = Some(name.into());
+        self
+    }
+
+    pub fn keyrings(&mut self, keyrings: Vec<String>) -> &mut Self {
+        self.request.keyrings = keyrings;
+        self
+    }
+
+    pub fn ignore_checksums(&mut self, v: bool) -> &mut Self {
+        self.request.ignore_checksums = Some(v);
+        self
+    }
+
     pub fn ignore_signatures(&mut self, v: bool) -> &mut Self {
         self.request.ignore_signatures = Some(v);
         self
     }
 
-    pub fn distribution<D: Into<String>>(&mut self, distribution: D) -> &mut Self {
-        self.request.distribution = Some(distribution.into());
+    pub fn force_update(&mut self, v: bool) -> &mut Self {
+        self.request.force_update = Some(v);
         self
     }
 
-    pub fn archive_url<U: Into<String>>(&mut self, archive_url: U) -> &mut Self {
-        self.request.archive_url = Some(archive_url.into());
+    pub fn skip_existing_packages(&mut self, v: bool) -> &mut Self {
+        self.request.skip_existing_packages = Some(v);
         self
     }
 
-    pub fn download_sources(&mut self, v: bool) -> &mut Self {
-        self.request.download_sources = Some(v);
+    pub fn latest_only(&mut self, v: bool) -> &mut Self {
+        self.request.latest_only = Some(v);
         self
     }
 
@@ -174,6 +273,7 @@ pub struct Mirror {
     worker_pid: u32,
     filter_with_deps: bool,
     skip_component_check: bool,
+    skip_architecture_check: bool,
     download_sources: bool,
     download_udebs: bool,
     download_installer: bool,
