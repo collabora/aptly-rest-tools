@@ -119,3 +119,53 @@ async fn mirror_update_rejects_unknown_fields() {
 
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
 }
+
+#[tokio::test]
+async fn mirror_edit() {
+    let mock = AptlyRestMock::start().await;
+    mock.load_default_data();
+    let aptly = AptlyRest::new(mock.url());
+
+    let mirror = aptly.mirror("apertis-v2023pre");
+    let mut edit = mirror.edit();
+    edit.archive_url("https://example.com/debian/")
+        .filter("Name (% nginx*)")
+        .architectures(vec!["amd64".to_owned(), "arm64".to_owned()])
+        .keyrings(vec!["/etc/apt/trusted.gpg".to_owned()])
+        .filter_with_deps(true)
+        .download_sources(true)
+        .download_udebs(true)
+        .download_installer(true)
+        .ignore_signatures(true);
+    edit.run().await.expect("failed to edit mirror");
+
+    let mirrors = mock.mirrors();
+    let m = mirrors.get("apertis-v2023pre").expect("mirror missing");
+    assert_eq!(m.archive_root(), "https://example.com/debian/");
+    assert_eq!(m.filter(), "Name (% nginx*)");
+    assert_eq!(m.architectures(), ["amd64", "arm64"]);
+    assert_eq!(m.keyrings(), ["/etc/apt/trusted.gpg"]);
+    assert!(m.filter_with_deps());
+    assert!(m.download_sources());
+    assert!(m.download_udebs());
+    assert!(m.download_installer());
+    assert!(m.ignore_signatures());
+}
+
+#[tokio::test]
+async fn mirror_edit_rejects_unknown_fields() {
+    let mock = AptlyRestMock::start().await;
+    mock.load_default_data();
+
+    // Components is not editable via the edit (POST) endpoint and must be rejected
+    // rather than silently ignored.
+    let url = mock.url().join("api/mirrors/apertis-v2023pre").unwrap();
+    let response = reqwest::Client::new()
+        .post(url)
+        .json(&serde_json::json!({ "Components": ["main"] }))
+        .send()
+        .await
+        .expect("request failed");
+
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+}

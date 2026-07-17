@@ -216,6 +216,99 @@ impl Respond for MirrorsUpdateResponder {
     }
 }
 
+// Deny unknown fields so that sending parameters the edit (POST) endpoint does not
+// accept -- e.g. Components or the skip-checks, which are not editable -- is caught
+// rather than silently ignored.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
+struct MirrorEditParams {
+    // The client serializes this as PascalCase "ArchiveUrl"; real aptly sends
+    // "ArchiveURL". Accept both.
+    #[serde(default, alias = "ArchiveURL")]
+    archive_url: Option<String>,
+    #[serde(default)]
+    filter: Option<String>,
+    #[serde(default)]
+    architectures: Vec<String>,
+    #[serde(default)]
+    keyrings: Vec<String>,
+    #[serde(default)]
+    filter_with_deps: Option<bool>,
+    #[serde(default)]
+    download_sources: Option<bool>,
+    #[serde(default)]
+    download_udebs: Option<bool>,
+    #[serde(default)]
+    download_installer: Option<bool>,
+    #[serde(default)]
+    ignore_signatures: Option<bool>,
+}
+
+pub(crate) struct MirrorsEditResponder {
+    mock: AptlyRestMock,
+}
+
+impl MirrorsEditResponder {
+    pub(crate) fn new(mock: AptlyRestMock) -> Self {
+        Self { mock }
+    }
+}
+
+impl Respond for MirrorsEditResponder {
+    fn respond(&self, request: &wiremock::Request) -> wiremock::ResponseTemplate {
+        let name = request
+            .url
+            .path_segments()
+            .and_then(|mut s| s.nth(2))
+            .unwrap_or("")
+            .to_owned();
+
+        let params: MirrorEditParams = match serde_json::from_slice(&request.body) {
+            Ok(params) => params,
+            Err(e) => {
+                return ResponseTemplate::new(400).set_body_string(e.to_string());
+            }
+        };
+
+        let mut inner = self.mock.inner.write().unwrap();
+        match inner.mirrors.get_mut(&name) {
+            Some(mirror) => {
+                let data = &mut mirror.data;
+                if let Some(archive_url) = params.archive_url {
+                    data.archive_root = archive_url;
+                }
+                if let Some(filter) = params.filter {
+                    data.filter = filter;
+                }
+                if !params.architectures.is_empty() {
+                    data.architectures = params.architectures;
+                }
+                if !params.keyrings.is_empty() {
+                    data.keyrings = params.keyrings;
+                }
+                if let Some(v) = params.filter_with_deps {
+                    data.filter_with_deps = v;
+                }
+                if let Some(v) = params.download_sources {
+                    data.download_sources = v;
+                }
+                if let Some(v) = params.download_udebs {
+                    data.download_udebs = v;
+                }
+                if let Some(v) = params.download_installer {
+                    data.download_installer = v;
+                }
+                if let Some(v) = params.ignore_signatures {
+                    data.ignore_signatures = v;
+                }
+                let body = mirror_json(data);
+                ResponseTemplate::new(200).set_body_json(body)
+            }
+            None => ResponseTemplate::new(404),
+        }
+    }
+}
+
 /*
 pub(crate) struct MirrorsPackagesResponder {
     mock: AptlyRestMock,

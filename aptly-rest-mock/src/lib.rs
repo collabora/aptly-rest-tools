@@ -94,6 +94,12 @@ impl AptlyRestMock {
             .mount(&server.server)
             .await;
 
+        Mock::given(method("POST"))
+            .and(path_regex(r"^/?api/mirrors/[^/]+$"))
+            .respond_with(api::mirrors::MirrorsEditResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
         server
     }
 

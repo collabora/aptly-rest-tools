@@ -107,6 +107,10 @@ impl Mirror {
         &self.data.distribution
     }
 
+    pub fn archive_root(&self) -> &str {
+        &self.data.archive_root
+    }
+
     pub fn components(&self) -> &[String] {
         self.data.components.as_slice()
     }
