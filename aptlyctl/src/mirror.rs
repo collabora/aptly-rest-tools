@@ -94,9 +94,53 @@ async fn create_mirror(opts: &MirrorCreateOpts, aptly: &AptlyRest) -> Result<()>
     Ok(())
 }
 
-async fn update(name: &str, aptly: &AptlyRest) -> Result<()> {
-    let mirror = aptly.mirror(name);
-    mirror.update().run().await?;
+#[derive(Parser, Debug)]
+pub struct MirrorUpdateOpts {
+    name: String,
+    #[clap(long)]
+    rename: Option<String>,
+    #[clap(long = "keyring")]
+    keyrings: Vec<String>,
+    #[clap(long)]
+    ignore_checksums: bool,
+    #[clap(long)]
+    ignore_signatures: bool,
+    #[clap(long)]
+    force_update: bool,
+    #[clap(long)]
+    skip_existing_packages: bool,
+    #[clap(long)]
+    latest_only: bool,
+}
+
+async fn update(opts: &MirrorUpdateOpts, aptly: &AptlyRest) -> Result<()> {
+    let mirror = aptly.mirror(&opts.name);
+    let mut update = mirror.update();
+
+    if let Some(rename) = &opts.rename {
+        update.rename(rename);
+    }
+    if !opts.keyrings.is_empty() {
+        update.keyrings(opts.keyrings.clone());
+    }
+    if opts.ignore_checksums {
+        update.ignore_checksums(true);
+    }
+    if opts.ignore_signatures {
+        update.ignore_signatures(true);
+    }
+    if opts.force_update {
+        update.force_update(true);
+    }
+    if opts.skip_existing_packages {
+        update.skip_existing_packages(true);
+    }
+    if opts.latest_only {
+        update.latest_only(true);
+    }
+
+    update.run().await?;
+
     Ok(())
 }
 
@@ -136,7 +180,7 @@ async fn list(format: OutputFormat, aptly: &AptlyRest) -> Result<()> {
 pub enum MirrorCommand {
     List(MirrorListOpts),
     Create(MirrorCreateOpts),
-    Update { name: String },
+    Update(MirrorUpdateOpts),
     Drop { name: String },
 }
 
@@ -145,7 +189,7 @@ impl MirrorCommand {
         match self {
             MirrorCommand::List(args) => list(args.format, aptly).await?,
             MirrorCommand::Create(args) => create_mirror(args, aptly).await?,
-            MirrorCommand::Update { name } => update(name, aptly).await?,
+            MirrorCommand::Update(args) => update(args, aptly).await?,
             MirrorCommand::Drop { name } => drop_mirror(name, aptly).await?,
         }
         Ok(ExitCode::SUCCESS)
