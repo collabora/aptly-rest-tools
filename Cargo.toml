@@ -13,4 +13,4 @@ resolver = "2"
 [workspace.dependencies]
 # We need the fixes in https://github.com/indygreg/linux-packaging-rs/pull/27 (merged)
 # And reqwest updates from https://github.com/indygreg/linux-packaging-rs/pull/35 (pending)
-debian-packaging = { git = "https://github.com/collabora/linux-packaging-rs.git", rev = "3d2f81f908ad5f2c6f4be37d8946a819fe2051b5" }
+debian-packaging = { git = "https://github.com/collabora/linux-packaging-rs.git", rev = "24c125c39f4345bf269574e2774dd0691ad54c1f" }
