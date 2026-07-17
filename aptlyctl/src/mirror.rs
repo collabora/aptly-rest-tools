@@ -232,6 +232,53 @@ async fn list(format: OutputFormat, aptly: &AptlyRest) -> Result<()> {
     Ok(())
 }
 
+#[derive(Parser, Debug)]
+pub struct MirrorPackagesOpts {
+    name: String,
+    #[clap(long, short, default_value("Name"))]
+    query: String,
+    #[clap(long, short)]
+    fail_if_empty: bool,
+    #[clap(long, value_enum, default_value_t)]
+    format: OutputFormat,
+}
+
+async fn packages(opts: &MirrorPackagesOpts, aptly: &AptlyRest) -> Result<ExitCode> {
+    let mirror = aptly.mirror(&opts.name);
+    let packages = mirror.packages();
+    match opts.format {
+        OutputFormat::Name => {
+            let mut keys = packages.query(opts.query.clone(), false).list().await?;
+            if opts.fail_if_empty && keys.is_empty() {
+                return Ok(ExitCode::FAILURE);
+            }
+
+            keys.sort();
+            for key in keys {
+                println!("{key}");
+            }
+        }
+        OutputFormat::Json | OutputFormat::Yaml => {
+            let results = packages.query(opts.query.clone(), false).detailed().await?;
+            if opts.fail_if_empty && results.is_empty() {
+                return Ok(ExitCode::FAILURE);
+            }
+
+            match opts.format {
+                OutputFormat::Json => {
+                    serde_json::to_writer_pretty(&mut stdout(), &results)?;
+                }
+                OutputFormat::Yaml => {
+                    serde_saphyr::to_io_writer(&mut stdout(), &results)?;
+                }
+                _ => unreachable!(),
+            }
+            println!();
+        }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 #[derive(Subcommand, Debug)]
 // MirrorCreateOpts is larger than the other variants, but this enum is only ever
 // constructed once from the parsed command line, so the size difference is irrelevant
@@ -242,6 +289,7 @@ pub enum MirrorCommand {
     Create(MirrorCreateOpts),
     Update(MirrorUpdateOpts),
     Edit(MirrorEditOpts),
+    Packages(MirrorPackagesOpts),
     Drop { name: String },
 }
 
@@ -252,6 +300,7 @@ impl MirrorCommand {
             MirrorCommand::Create(args) => create_mirror(args, aptly).await?,
             MirrorCommand::Update(args) => update(args, aptly).await?,
             MirrorCommand::Edit(args) => edit(args, aptly).await?,
+            MirrorCommand::Packages(args) => return packages(args, aptly).await,
             MirrorCommand::Drop { name } => drop_mirror(name, aptly).await?,
         }
         Ok(ExitCode::SUCCESS)
