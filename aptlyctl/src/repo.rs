@@ -34,7 +34,10 @@ pub struct RepoPackagesDeleteOpts {
 pub struct RepoPackagesSyncOpts {
     #[clap(long, short = 'n', default_value_t)]
     dry_run: bool,
-    src_repo: String,
+    /// Treat the source as a mirror instead of a repo
+    #[clap(long)]
+    from_mirror: bool,
+    source: String,
     dst_repo: String,
 }
 
@@ -124,14 +127,25 @@ impl RepoPackagesCommand {
                 }
             }
             RepoPackagesCommand::Sync(s) => {
-                let src_keys = aptly
-                    .repo(&s.src_repo)
-                    .packages()
-                    .list()
-                    .await
-                    .with_context(|| {
-                        format!("Failed to list packages in source repo '{}'", s.src_repo)
-                    })?;
+                let src_keys = if s.from_mirror {
+                    aptly
+                        .mirror(&s.source)
+                        .packages()
+                        .list()
+                        .await
+                        .with_context(|| {
+                            format!("Failed to list packages in source mirror '{}'", s.source)
+                        })?
+                } else {
+                    aptly
+                        .repo(&s.source)
+                        .packages()
+                        .list()
+                        .await
+                        .with_context(|| {
+                            format!("Failed to list packages in source repo '{}'", s.source)
+                        })?
+                };
                 let dst_keys = aptly
                     .repo(&s.dst_repo)
                     .packages()
