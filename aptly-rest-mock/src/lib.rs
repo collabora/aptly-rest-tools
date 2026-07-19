@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use http::StatusCode;
+use mirror::Mirrors;
 use pool::Package;
 use repo::Repositories;
 use serde::Deserialize;
@@ -16,6 +18,7 @@ use wiremock::ResponseTemplate;
 use wiremock::{Mock, MockServer};
 
 mod api;
+mod mirror;
 mod pool;
 mod repo;
 use pool::Pool;
@@ -25,6 +28,7 @@ pub const APTLY_VERSION: &str = "1.4.0+187+g15f2c97d";
 struct Inner {
     pool: Pool,
     repositories: Repositories,
+    mirrors: Mirrors,
 }
 
 #[derive(Clone)]
@@ -38,6 +42,7 @@ impl AptlyRestMock {
         let inner = Arc::new(RwLock::new(Inner {
             pool: Pool::new(),
             repositories: Repositories::new(),
+            mirrors: Mirrors::new(),
         }));
         let server = AptlyRestMock {
             server: Arc::new(MockServer::start().await),
@@ -71,6 +76,36 @@ impl AptlyRestMock {
             .mount(&server.server)
             .await;
 
+        Mock::given(method("GET"))
+            .and(path("api/mirrors"))
+            .respond_with(api::mirrors::MirrorsResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path("api/mirrors"))
+            .respond_with(api::mirrors::MirrorsCreateResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("PUT"))
+            .and(path_regex(r"^/?api/mirrors/[^/]+$"))
+            .respond_with(api::mirrors::MirrorsUpdateResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path_regex(r"^/?api/mirrors/[^/]+$"))
+            .respond_with(api::mirrors::MirrorsEditResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/?api/mirrors/[^/]+/packages$"))
+            .respond_with(api::mirrors::MirrorsPackagesResponder::new(server.clone()))
+            .mount(&server.server)
+            .await;
+
         server
     }
 
@@ -91,6 +126,11 @@ impl AptlyRestMock {
                 r.default_distribution,
                 r.default_component,
             );
+        }
+        if let Some(mut mirrors) = data.mirrors {
+            for m in mirrors.drain(..) {
+                inner.mirrors.add(m.into());
+            }
         }
         drop(inner);
 
@@ -119,6 +159,16 @@ impl AptlyRestMock {
         inner.repositories.add_package(repo, key);
     }
 
+    /// Add package to named mirror using aptly key.
+    ///
+    /// The package with the given key should already be in the package pool
+    /// and the mirror should be part of the mirrors
+    pub fn mirror_add_package(&self, mirror: &str, key: String) {
+        let mut inner = self.inner.write().unwrap();
+        assert!(inner.pool.has_package(&key), "{key} not found in pool");
+        inner.mirrors.add_package(mirror, key);
+    }
+
     pub fn url(&self) -> Url {
         self.server.uri().parse().expect("uri is not a url")
     }
@@ -126,6 +176,11 @@ impl AptlyRestMock {
     pub fn repos(&self) -> Repositories {
         let inner = self.inner.read().unwrap();
         inner.repositories.clone()
+    }
+
+    pub fn mirrors(&self) -> Mirrors {
+        let inner = self.inner.read().unwrap();
+        inner.mirrors.clone()
     }
 
     pub fn package(&self, key: &str) -> Option<Package> {
@@ -143,6 +198,36 @@ struct RepoData {
     default_component: String,
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct MirrorData {
+    #[serde(rename = "UUID")]
+    uuid: String,
+    name: String,
+    archive_root: String,
+    distribution: String,
+    components: Vec<String>,
+    architectures: Vec<String>,
+    meta: HashMap<String, String>,
+    last_download_date: String,
+    filter: String,
+    status: u32,
+    #[serde(rename = "WorkerPID")]
+    worker_pid: u32,
+    filter_with_deps: bool,
+    skip_component_check: bool,
+    skip_architecture_check: bool,
+    download_sources: bool,
+    download_udebs: bool,
+    download_installer: bool,
+    #[serde(default)]
+    download_app_stream: bool,
+    #[serde(default)]
+    keyrings: Vec<String>,
+    #[serde(default)]
+    ignore_signatures: bool,
+}
+
 #[derive(Deserialize, Debug)]
 struct ContentData {
     repository: String,
@@ -152,6 +237,7 @@ struct ContentData {
 #[derive(Deserialize, Debug)]
 struct Data {
     repositories: Vec<RepoData>,
+    mirrors: Option<Vec<MirrorData>>,
     contents: Vec<ContentData>,
     packages: Vec<serde_json::Value>,
 }
