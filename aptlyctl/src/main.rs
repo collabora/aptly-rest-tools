@@ -26,6 +26,13 @@ enum OutputFormat {
     Yaml,
 }
 
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+enum LogFormat {
+    #[default]
+    Pretty,
+    Json,
+}
+
 #[derive(Subcommand, Debug)]
 enum Command {
     Repo {
@@ -66,16 +73,34 @@ struct Opts {
     /// Authentication token for the API
     #[clap(long, env = "APTLY_API_TOKEN")]
     api_token: Option<String>,
+    /// Log output format
+    #[clap(long, value_enum, default_value_t = LogFormat::Pretty)]
+    log_format: LogFormat,
+}
+
+fn init_tracing(format: LogFormat) {
+    match format {
+        LogFormat::Pretty => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+            .init(),
+        LogFormat::Json => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .json()
+                    .with_filter(LevelFilter::INFO),
+            )
+            .init(),
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<ExitCode> {
-    tracing_subscriber::registry()
-        .with(ErrorLayer::default())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
-        .init();
-    color_eyre::install().unwrap();
     let opts = Opts::parse();
+    init_tracing(opts.log_format);
+    color_eyre::install()?;
+
     let aptly = if let Some(token) = opts.api_token {
         AptlyRest::new_with_token(opts.api_url, &token)?
     } else {

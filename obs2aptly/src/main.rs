@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use aptly_rest::AptlyRest;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use color_eyre::Result;
 use sync2aptly::{AptlyContent, PoolPackagesCache, UploadOptions};
 use tracing::metadata::LevelFilter;
@@ -12,6 +12,13 @@ use tracing_subscriber::prelude::*;
 enum FilterKind {
     Sources,
     Binaries,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+enum LogFormat {
+    #[default]
+    Pretty,
+    Json,
 }
 
 #[derive(Parser, Debug)]
@@ -40,16 +47,34 @@ struct Opts {
     /// Only show changes, don't apply them
     #[clap(short = 'n', long, default_value_t = false)]
     dry_run: bool,
+    /// Log output format
+    #[clap(long, value_enum, default_value_t = LogFormat::Pretty)]
+    log_format: LogFormat,
+}
+
+fn init_tracing(format: LogFormat) {
+    match format {
+        LogFormat::Pretty => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+            .init(),
+        LogFormat::Json => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .json()
+                    .with_filter(LevelFilter::INFO),
+            )
+            .init(),
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(ErrorLayer::default())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
-        .init();
-    color_eyre::install().unwrap();
     let opts = Opts::parse();
+    init_tracing(opts.log_format);
+    color_eyre::install()?;
+
     let aptly = if let Some(token) = opts.api_token {
         AptlyRest::new_with_token(opts.api_url, &token)?
     } else {

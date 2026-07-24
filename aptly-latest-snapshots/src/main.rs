@@ -2,12 +2,19 @@ use std::{net::SocketAddr, time::Duration};
 
 use aptly_latest_snapshots::{create_app, periodic_snapshot_refresh, AppState};
 use aptly_rest::AptlyRest;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use color_eyre::{eyre::WrapErr, Result};
 use tracing::info;
 use tracing::metadata::LevelFilter;
 use tracing_error::ErrorLayer;
 use tracing_subscriber::prelude::*;
+
+#[derive(ValueEnum, Clone, Copy, Debug, Default)]
+enum LogFormat {
+    #[default]
+    Pretty,
+    Json,
+}
 
 #[derive(Parser, Debug)]
 struct Opts {
@@ -31,17 +38,34 @@ struct Opts {
         default_value_t = 600,
         value_parser = clap::value_parser!(u16).range(1..))]
     refresh_interval_sec: u16,
+    /// Log output format
+    #[clap(long, value_enum, default_value_t = LogFormat::Pretty)]
+    log_format: LogFormat,
+}
+
+fn init_tracing(format: LogFormat) {
+    match format {
+        LogFormat::Pretty => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+            .init(),
+        LogFormat::Json => tracing_subscriber::registry()
+            .with(ErrorLayer::default())
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .json()
+                    .with_filter(LevelFilter::INFO),
+            )
+            .init(),
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(ErrorLayer::default())
-        .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
-        .init();
-    color_eyre::install().unwrap();
-
     let opts = Opts::parse();
+    init_tracing(opts.log_format);
+    color_eyre::install()?;
+
     let aptly = if let Some(token) = &opts.api_token {
         AptlyRest::new_with_token(opts.api_url.clone(), token)?
     } else {
