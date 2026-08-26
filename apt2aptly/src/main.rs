@@ -341,7 +341,13 @@ async fn sync_dist(
         if !opts.dry_run {
             actions
                 .apply(
-                    "apt2aptly",
+                    &format!(
+                        "apt2aptly-{}",
+                        apt_repo
+                            .dist
+                            .base_dist()
+                            .replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "-")
+                    ),
                     &UploadOptions {
                         max_parallel: opts.max_parallel,
                     },
